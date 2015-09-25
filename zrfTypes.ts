@@ -252,8 +252,8 @@ export namespace zrfNodes {
         @parseNamed("BoardSetup")         "board-setup": BoardSetup;
         @parseNamed("Board[]", "board")   boards: Board[];
         @parseNamed("Piece[]", "piece")   pieces: Piece[];
-        @parseNamed("Option[]", "option") options: Option[];
-        @parseNamed("EndCondition[]", "draw-condition") "draw-conditions": EndCondition[];
+        @parseNamedOptional("Option[]", "option") options: Option[];
+        @parseNamedOptional("EndCondition[]", "draw-condition") "draw-conditions": EndCondition[];
         @parseNamed("EndCondition[]", "win-condition")   "win-conditions": EndCondition[];
     }
 
