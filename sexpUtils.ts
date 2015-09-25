@@ -1,5 +1,16 @@
 import {SExp} from "./sexpParser"
 
+
+export function sexprMap(sexpr:SExp|string, callback):string|SExp {
+    if (sexpr == null) {
+        return sexpr;
+    } else if (typeof sexpr === "string") {
+        return sexpr;
+    } else {
+        return {head: callback(sexpr.head), tail: callback(sexpr.tail)};
+    }
+}
+
 export function sexprCopy(sexpr:SExp):SExp {
     if (sexpr == null) {
         return sexpr;

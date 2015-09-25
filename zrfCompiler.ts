@@ -3,7 +3,8 @@ import {SExp, sexpParse} from "./sexpParser";
 import {zrfNodes, zrfTypesWithNoMacros} from "./zrfTypes";
 import {zrfPrettyPrint} from "./zrfUtils";
 
-import {sexpToList, sexprCopy, sexprVisitNamed} from "./sexpUtils";
+import {arrayContains, hasProperty, assert} from "./common/common";
+import {sexpToList, sexprMap, sexprCopy, sexprVisitNamed} from "./sexpUtils";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -23,7 +24,7 @@ export function zrfCompile(content:string):zrfNodes.File {
 
 // Raw s-expression parsing:
 export function sanitizeAndSexpParse(content):SExp {
-    // Keep our parser simple by sanitizing parts of the file, for now (TODO integrate into parser maybe.)
+    // Keep our parser simple by sanitizing parts of the file, for now (TODO integrate into parser maybe
     // Remove comments:
     content = content.replace(/;[^\n]*/g, "");
     // Replace \ with /:
@@ -37,55 +38,70 @@ export function sanitizeAndSexpParse(content):SExp {
 // Macro subsitution logic:
 ////////////////////////////////////////////////////////////////////////////////
 
-function replaceArguments(sexp:SExp, replacements):SExp {
-    return sexprVisitNamed(sexp, (child) => {
-        if (replacements[child.head] != null) {
-            var r = sexprCopy(replacements[child.head]);
-            return child.head = r;
+function replaceDollarSignArguments(sexp, args:(string|SExp)[]):(string|SExp) {
+    var replacements = {};
+    for (var i = 0; i < args.length; i++) {
+        replacements["$" + (i+1)] = args[i];
+    }
+    function replace(sexp):string|SExp {
+        if (sexp == null || typeof sexp === "string") {
+            return sexp;
         }
-    });
+        if (hasProperty(replacements, sexp.head)) {
+            return {head: sexprCopy(replacements[sexp.head]),
+                    tail: <SExp> replace(sexp.tail)};
+        }
+        return sexprMap(sexp, replace);
+    }
+    return replace(sexp);
 }
 
-function replaceDefines(sexp:SExp, defines):SExp {
-    if ((sexp == null) || typeof sexp !== "object") {
-        return;
-    }
-    if (typeof sexp.head !== "object") {
-        for (var {head, tail} of defines) {
-            if (sexp.head === head) {
-                var args = sexpToList(sexp.tail);
-                var replacements = {};
-                for (var i = 0; i < args.length; i++) {
-                    replacements["$" + (i+1)] = args[i];
-                }
-                var newObj = sexprCopy(tail);
-                replaceArguments(newObj, replacements);
-                sexp.head = newObj.head;
-                sexp.tail = newObj.tail;
-            }
-        }
-    } else {
-        replaceDefines(<SExp>sexp.head, defines);
-    }
-    return replaceDefines(sexp.tail, defines);
-}
-
-// Resolve macros:
-function findAndReplaceDefines(S:SExp):SExp {
-    // Defines should be top level:
-    var defines:SExp[] = [], newNode:SExp = {head: S.head};
-    var iter = newNode;
-    for (var node of sexpToList(S)) {
+function findAndReplaceDefines(fileSexp:SExp):SExp {
+    // Gather defines from the top level:
+    var defines = [];
+    let definingNodes = [];
+    for (var node of sexpToList(fileSexp)) {
         if (typeof node !== "string" && node.head === "define") {
-            defines.push(node.tail);
-        } else {
-            // Relink nodes, removing the defines:
-            iter.tail = {head: node};
-            iter = iter.tail;
+            let {head: name, tail: replacement} = node.tail;
+            definingNodes.push(node);
+            defines.push({name, replacement});
         }
     }
-    // Inline globally the result of the defines:
-    replaceDefines(newNode, defines);
-    return newNode;
+    let newResult:SExp = fileSexp;
+    // TODO & NOTE: Macro recursion *will* infinite loop this thingy.
+    while (true) {
+        var didChange = false;
+        function pass(sexp) {
+            if (sexp !== null && typeof sexp === "object") {
+                var {head, tail} = sexp;
+                if (arrayContains(definingNodes, head)) {
+                    // Don't set didChange to true here because removing a 
+                    // define will never require another compilation pass to resolve.
+                    return pass(tail);
+                }
+                if (head && head.head && typeof head.head === "string") {
+                    for (var {name, replacement} of defines) {
+                        if (head.head === name) {
+                            didChange = true;
+                            let replaced = <SExp> replaceDollarSignArguments(replacement, sexpToList(head.tail));
+                            let endTail = replaced;
+                            while (endTail.tail !== null) {
+                                endTail = endTail.tail;
+                            }
+                            // NOTICE: Uses mutation based on fact replaceDollarSignArguments returns fresh object
+                            endTail.tail = tail;
+                            return replaced;
+                        }
+                    }
+                }
+            }
+            return sexprMap(sexp, pass);
+        }
+        newResult = <SExp>pass(newResult);
+        if (!didChange) {
+            break;
+        }
+    }
+    return newResult;
 }
 

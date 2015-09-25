@@ -15,6 +15,10 @@ export abstract class Enumerable {
     enumId:number;
 }
 
+export function assert(val:boolean, msg?:string) {
+    if (!val) throw new Error(msg);
+}
+
 export function arrayContains<T>(arr:T[], val:T):boolean {
     for (let arrVal of arr) {
         if (arrVal === val) {

@@ -87,7 +87,6 @@ export namespace zrfNodes {
                         continue;
                     }
                     console.log(`WARNING Did not find non-optional positional attribute ${key}:${this._subevents[key].type} on ${this._classname}!`)
-                    throw new Error(); // for now
                 }
                 // TODO Make this backwards compatibility less ugly:
                 zrfChildParse(this, key, {head: sexpList[key], tail: null}, this._subevents[key]);
@@ -111,7 +110,6 @@ export namespace zrfNodes {
             for (let unused of unusedStringKeys) {
                 if (!this._subevents[unused].optional) {
                     console.log(`WARNING Did not find non-optional attribute ${unused} on ${this._classname}!`)
-                    throw new Error(); // for now
                 }
             }
         }
@@ -205,6 +203,9 @@ export namespace zrfNodes {
             image:string;
         @parseNamed("Grid")
             grid:Grid;
+        processSubnodesWorker(sexp:SExp) {
+            super.processSubnodesWorker(sexp);
+        }
     }
 
     type PiecePlacements = {piece:string, squares:string[]}[];
