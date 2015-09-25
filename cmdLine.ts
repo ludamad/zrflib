@@ -8,4 +8,4 @@ import * as fs from "fs";
 
 var zrf = zrfCompile(fs.readFileSync(process.argv[2], "utf8"));
 
-zrfPrettyPrint(zrf)
+console.log  (zrfPrettyPrint(zrf))

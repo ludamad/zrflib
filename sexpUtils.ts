@@ -12,14 +12,7 @@ export function sexprMap(sexpr:SExp|string, callback):string|SExp {
 }
 
 export function sexprCopy(sexpr:SExp):SExp {
-    if (sexpr == null) {
-        return sexpr;
-    } else {
-        return {
-            head: (typeof sexpr.head === "string" ? sexpr.head : sexprCopy(<SExp>sexpr.head)),
-            tail: sexprCopy(sexpr.tail)
-        };
-    }
+    return <SExp> sexprMap(sexpr, sexprMap);
 }
 
 export function sexprVisitNamed(sexpr:SExp, f:(SExp)=>void) {

@@ -37,7 +37,7 @@ function parseNamedOptional(type:any, name?:string) : PropertyDecorator {
 
 function parsePositional(type:any, index?:number, optional?: boolean) {
     return (target, propertyKey: string) => {
-        _parse(type, index || target._nextId || 0)(target, propertyKey);
+        _parse(type, index || target._nextId || 0, optional)(target, propertyKey);
     }
 }
 
@@ -52,7 +52,6 @@ interface StrMap<T> {
 function hasOwnProperty(obj:Object, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Classes for the ZRF object model. Define parsing events with metadata.
@@ -83,16 +82,20 @@ export namespace zrfNodes {
             // Handle numeric keys specially, as position dependent:
             for (let key of indexKeys) {
                 if (typeof sexpList[key] === "undefined") {
-                    if (this._subevents[key].optional) {
-                        continue;
+                    if (!this._subevents[key].optional) {
+                        console.log(`WARNING Did not find non-optional positional attribute ${key}:${this._subevents[key].type} on ${this._classname}!`)
                     }
-                    console.log(`WARNING Did not find non-optional positional attribute ${key}:${this._subevents[key].type} on ${this._classname}!`)
+                    continue;
                 }
                 // TODO Make this backwards compatibility less ugly:
                 zrfChildParse(this, key, {head: sexpList[key], tail: null}, this._subevents[key]);
             }
             // Handle named keys as non-position dependent:
-            for (let sexp of sexpList) {
+            for (let i = 0; i < sexpList.length; i++) {
+                if (arrayContains(indexKeys, ""+i)) {
+                    continue;
+                }
+                let sexp = sexpList[i];
                 if (typeof sexp !== "string") {
                     let {head, tail} = sexp;
                     let parsed = false;
@@ -103,7 +106,7 @@ export namespace zrfNodes {
                         parsed = true;
                     }
                     if (!parsed) {
-                        console.log(`**NYI: ${this._classname} ${head}`);
+                        console.log(`**NYI: ${this._classname} ${JSON.stringify(head)}`);
                     }
                 }
             }
@@ -116,11 +119,10 @@ export namespace zrfNodes {
     }
 
     export class File extends Node {
-        @parseNamed("string")
-            version:string;
-        @parseNamed("Game", "game" /* Subevent name */)
-            game:Game;
-        // TODO Variants
+        @parseNamedOptional("string") version:string;
+        @parseNamed("Game") game:Game;
+        @parseNamed("Variant[]", "variant" /* Subevent name */)
+            variants:Variant[];
     }
 
     export class Directions extends Node {
@@ -161,6 +163,8 @@ export namespace zrfNodes {
     export class Piece extends Node {
         @parseNamed("string")
             name:string;
+        @parseNamedOptional("string")
+            description:string;
         @parseNamed("string")
             help:string;
         @parseNamed((sexp:SExp, obj) => {
@@ -180,10 +184,16 @@ export namespace zrfNodes {
     }
     
     export class Drops extends Node {
-        @parsePositional(parseStatement) statement:Statement;
+        drops:Statement[][];
+        processSubnodesWorker(drops:SExp) {
+            this.drops = sexpToList(drops).map(parseStatementList);
+        }
     }
     export class Moves extends Node {
-        @parsePositional(parseStatement) statement:Statement;
+        moves:Statement[][];
+        processSubnodesWorker(moves:SExp) {
+            this.moves = sexpToList(moves).map(parseStatementList);
+        }
     }
 
     export class Grid extends Node {
@@ -198,14 +208,30 @@ export namespace zrfNodes {
             directions:Directions;
     }
 
+    export class Symmetry extends Node {
+        playerId:string;
+        directionPairs:[string,string][];
+        processSubnodesWorker(sexp:SExp) {
+            let {head, tail} = sexp;
+            this.playerId = sexpStringCast(head);
+            this.directionPairs = sexpToList(tail).map(sexpToStringPair);
+        }
+    }
+
     export class Board extends Node {
-        @parseNamed("string")
-            image:string;
-        @parseNamed("Grid")
-            grid:Grid;
+        @parseNamed("string") image:string;
+        @parseNamed("Grid") grid:Grid;
+        @parseNamedOptional("Symmetry") symmetry:Symmetry;
+        @parseNamed("Zone[]", "zone") zones:Zone[];
         processSubnodesWorker(sexp:SExp) {
             super.processSubnodesWorker(sexp);
         }
+    }
+
+    export class Zone extends Node {
+        @parseNamed("string") name:string;
+        @parseNamed("string*") players:string[];
+        @parseNamed("string*") positions:string[];
     }
 
     type PiecePlacements = {piece:string, squares:string[]}[];
@@ -227,12 +253,13 @@ export namespace zrfNodes {
 
     export class EndCondition extends Node {
         players:string[];
-        condition:string|SExp;
+        condition:Condition;
         processSubnodesWorker(components:SExp) {
             // Parse conditions in separate file, same as directionality stuff.
             var [playersSexp, condition] = sexpToList(components).map(sexpBoxIfString);
             this.players = sexpToStrings(playersSexp);
-            this.condition = condition;
+            this.condition = parseCondition(condition);
+            
         }
     }
 
@@ -241,10 +268,36 @@ export namespace zrfNodes {
         @parsePositional("SExp")   value:SExp;
     }
 
+    export class Variant extends Node {
+        // Almost clone of Game, except for optionality
+        @parseNamedOptional("string")             title:        string;
+        @parseNamedOptional("string")             description:  string;
+        @parseNamedOptional("string")             history:      string;
+        @parseNamedOptional("string")             strategy:     string;
+        @parseNamedOptional("string*")            players:      string[];
+        @parseNamedOptional("string*")            "turn-order":  string;
+        @parseNamedOptional("BoardSetup")         "board-setup": BoardSetup;
+        @parseNamedOptional("Board[]", "board")   boards: Board[];
+        @parseNamedOptional("Piece[]", "piece")   pieces: Piece[];
+        @parseNamedOptional("Option[]", "option") options: Option[];
+        @parseNamedOptional("EndCondition[]", "draw-condition") "draw-conditions": EndCondition[];
+        @parseNamedOptional("EndCondition[]", "win-condition") "win-conditions": EndCondition[];
+    }
+
     export class Game extends Node {
         // Metadata for parser, field name, field type.
         @parseNamed("string")             title:        string;
         @parseNamedOptional("string")     description:  string;
+        @parseNamedOptional("string")     music:        string;
+        // Sound:
+        @parseNamedOptional("string")     "opening-sound": string;
+        @parseNamedOptional("string")     "win-sound": string;
+        @parseNamedOptional("string")     "loss-sound": string;
+        @parseNamedOptional("string")     "release-sound": string;
+        @parseNamedOptional("string")     "capture-sound": string;
+        @parseNamedOptional("string")     "move-sound": string;
+        // TODO: Enum for pass-turn states:
+        @parseNamedOptional("string")     "pass-turn": string;
         @parseNamedOptional("string")     history:      string;
         @parseNamedOptional("string")     strategy:     string;
         @parseNamed("string*")            players:      string[];
@@ -254,7 +307,7 @@ export namespace zrfNodes {
         @parseNamed("Piece[]", "piece")   pieces: Piece[];
         @parseNamedOptional("Option[]", "option") options: Option[];
         @parseNamedOptional("EndCondition[]", "draw-condition") "draw-conditions": EndCondition[];
-        @parseNamed("EndCondition[]", "win-condition")   "win-conditions": EndCondition[];
+        @parseNamed("EndCondition[]", "win-condition") "win-conditions": EndCondition[];
     }
 
     export interface ZrfCompilerPass<T> {
@@ -326,6 +379,7 @@ export namespace zrfNodes {
                 case "piece?": return new PieceCondition();
                 case "position?": return new PositionCondition();
                 case "position-flag?": return new PositionFlagCondition();
+                case "absolute-config": return new AbsoluteConfigCondition();
                 }
                 throw new Error("Conditional expected!");
             }
@@ -340,11 +394,12 @@ export namespace zrfNodes {
 
             if (typeof sexp === "string") {
                 return getConditionHandlingNot(sexp);
-            } else if (typeof sexp.tail === "string") {
+            } else if (typeof sexp.head === "string") {
                 var result = getConditionHandlingNot(<string>sexp.head);
                 result.processSubnodes(sexp.tail);
                 return result;
             }
+            throw new Error("Sexp has wrong shape!" + JSON.stringify(sexp));
         }
 
         export function parseStatement(sexp:SExp|string):Statement{
@@ -373,15 +428,13 @@ export namespace zrfNodes {
             }
 
             if (typeof sexp === "string") {
-                console.log(sexp)
                 return getStatement(sexp);
             } else if (typeof sexp.head === "string") {
                 let statement = getStatement(<string>sexp.head);
-                console.log(sexp.tail)
                 statement.processSubnodes(sexp.tail);
-                console.log(statement)
                 return statement;
             }
+            throw new Error("No statement from " + JSON.stringify(sexp));
         }
        
         //
@@ -424,19 +477,19 @@ export namespace zrfNodes {
             @parsePositional("string") positionOrDirectionId: string;
         }
         export class EmptyCondition extends Condition {
-            @parsePositional("string") positionOrDirectionId: string;
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class EnemyCondition extends Condition {
-            @parsePositional("string") positionOrDirectionId: string;
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class FriendCondition extends Condition {
-            @parsePositional("string") positionOrDirectionId: string;
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class GoalPositionCondition extends Condition {
-            @parsePositional("string") positionOrDirectionId: string;
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class IncludesCondition extends Condition {
-            @parsePositional("string") positionOrDirectionId: string;
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class InZoneCondition extends Condition {
             @parsePositional("string") zoneId: string;
@@ -466,7 +519,13 @@ export namespace zrfNodes {
         export class PositionFlagCondition extends Condition {
             @parsePositional("string") positionOrDirectionId: string;
         }
-
+        
+        export class AbsoluteConfigCondition extends Condition {
+            occupantAndPieceIds:string[][];
+            processSubnodesWorker(sexp:SExp) {
+                this.occupantAndPieceIds = sexpToList(sexp).map(sexpBoxIfString).map(sexpToStrings);
+            }
+        }
         //
         // The statement types 
         // Some comments are snippets from the ZRF reference manual

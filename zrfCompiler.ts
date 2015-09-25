@@ -89,7 +89,7 @@ function findAndReplaceDefines(fileSexp:SExp):SExp {
                                 endTail = endTail.tail;
                             }
                             // NOTICE: Uses mutation based on fact replaceDollarSignArguments returns fresh object
-                            endTail.tail = tail;
+                            endTail.tail = pass(tail);
                             return replaced;
                         }
                     }
