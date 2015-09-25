@@ -380,8 +380,9 @@ export namespace zrfNodes {
                 case "position?": return new PositionCondition();
                 case "position-flag?": return new PositionFlagCondition();
                 case "absolute-config": return new AbsoluteConfigCondition();
+                case "stalemated": return new StalematedCondition();
                 }
-                throw new Error("Conditional expected!");
+                throw new Error("Conditional expected!" + JSON.stringify(sexp));
             }
             // Account for 'not-':
             let getConditionHandlingNot = (keyword:string) => {
@@ -503,6 +504,9 @@ export namespace zrfNodes {
         }
         export class MarkedCondition extends Condition {
             @parsePositional("string") positionOrDirectionId: string;
+        }
+        export class StalematedCondition extends Condition {
+            @parsePositionalOptional("string") positionOrDirectionId: string;
         }
         export class NeutralCondition extends Condition {
             @parsePositional("string") positionOrDirectionId: string;
