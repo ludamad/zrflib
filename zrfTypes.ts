@@ -380,6 +380,7 @@ export namespace zrfNodes {
                 case "position?": return new PositionCondition();
                 case "position-flag?": return new PositionFlagCondition();
                 case "absolute-config": return new AbsoluteConfigCondition();
+                case "relative-config": return new RelativeConfigCondition();
                 case "stalemated": return new StalematedCondition();
                 }
                 throw new Error("Conditional expected!" + JSON.stringify(sexp));
@@ -529,6 +530,9 @@ export namespace zrfNodes {
             processSubnodesWorker(sexp:SExp) {
                 this.occupantAndPieceIds = sexpToList(sexp).map(sexpBoxIfString).map(sexpToStrings);
             }
+        }
+        
+        export class RelativeConfigCondition extends Condition {
         }
         //
         // The statement types 
