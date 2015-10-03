@@ -35,6 +35,15 @@ function parseNamedOptional(type:any, name?:string) : PropertyDecorator {
     return _parse(type, name, true);
 }
 
+// Precludes use of all other 'parse' methods (including itself!)
+function parseRest(parseFunc:Function) {
+    return (target, propertyKey: string) => {
+        // assert(!target._subevents);
+        target.processSubnodesWorker = function(sexp) {
+            this[propertyKey] = parseFunc(sexp);
+        }
+    };
+}
 function parsePositional(type:any, index?:number, optional?: boolean) {
     return (target, propertyKey: string) => {
         _parse(type, index || target._nextId || 0, optional)(target, propertyKey);
@@ -121,7 +130,7 @@ export namespace zrfNodes {
     export class File extends Node {
         @parseNamedOptional("string") version:string;
         @parseNamed("Game") game:Game;
-        @parseNamed("Variant[]", "variant" /* Subevent name */)
+        @parseNamedOptional("Variant[]", "variant" /* Subevent name */)
             variants:Variant[];
     }
 
@@ -146,7 +155,7 @@ export namespace zrfNodes {
         width:number;
         height:number;
         processSubnodesWorker(dirs:SExp) {
-            var [rows, cols] = sexpToSexps(dirs);
+            var [cols, rows] = sexpToSexps(dirs);
             var [yLabels, yBnds] = sexpToLabeledPair(rows);
             var [xLabels, xBnds] = sexpToLabeledPair(cols);
             var [x1, x2] = sexpToStringPair(xBnds);
@@ -222,7 +231,7 @@ export namespace zrfNodes {
         @parseNamed("string") image:string;
         @parseNamed("Grid") grid:Grid;
         @parseNamedOptional("Symmetry") symmetry:Symmetry;
-        @parseNamed("Zone[]", "zone") zones:Zone[];
+        @parseNamedOptional("Zone[]", "zone") zones:Zone[];
         processSubnodesWorker(sexp:SExp) {
             super.processSubnodesWorker(sexp);
         }
@@ -301,9 +310,9 @@ export namespace zrfNodes {
         @parseNamedOptional("string")     history:      string;
         @parseNamedOptional("string")     strategy:     string;
         @parseNamed("string*")            players:      string[];
-        @parseNamed("string*")            "turn-order":  string;
+        @parseNamed("string*")            "turn-order":  string[];
         @parseNamed("BoardSetup")         "board-setup": BoardSetup;
-        @parseNamed("Board[]", "board")   boards: Board[];
+        @parseNamed("Board")              board: Board[];
         @parseNamed("Piece[]", "piece")   pieces: Piece[];
         @parseNamedOptional("Option[]", "option") options: Option[];
         @parseNamedOptional("EndCondition[]", "draw-condition") "draw-conditions": EndCondition[];
@@ -311,15 +320,65 @@ export namespace zrfNodes {
     }
 
     export interface ZrfCompilerPass<T> {
+        Node?(obj:Node): T;
         File?(obj:File): T;
         Directions?(obj:Directions): T;
         Dimensions?(obj:Dimensions): T;
         Piece?(obj:Piece): T;
+        Drops?(obj:Drops): T;
+        Moves?(obj:Moves): T;
         Grid?(obj:Grid): T;
+        Symmetry?(obj:Symmetry): T;
         Board?(obj:Board): T;
+        Zone?(obj:Zone): T;
         BoardSetup?(obj:BoardSetup): T;
         EndCondition?(obj:EndCondition): T;
+        Option?(obj:Option): T;
+        Variant?(obj:Variant): T;
         Game?(obj:Game): T;
+        
+        Condition?(obj:Condition): T;
+        LiteralCondition?(obj:LiteralCondition): T;
+        NotCondition?(obj:NotCondition): T;
+        FlagCondition?(obj:FlagCondition): T;
+        AndCondition?(obj:AndCondition): T;
+        OrCondition?(obj:OrCondition): T;
+        AdjacentToEnemyCondition?(obj:AdjacentToEnemyCondition): T;
+        AttackedCondition?(obj:AttackedCondition): T;
+        DefendedCondition?(obj:DefendedCondition): T;
+        EmptyCondition?(obj:EmptyCondition): T;
+        EnemyCondition?(obj:EnemyCondition): T;
+        FriendCondition?(obj:FriendCondition): T;
+        GoalPositionCondition?(obj:GoalPositionCondition): T;
+        IncludesCondition?(obj:IncludesCondition): T;
+        InZoneCondition?(obj:InZoneCondition): T;
+        LastFromCondition?(obj:LastFromCondition): T;
+        LastToCondition?(obj:LastToCondition): T;
+        MarkedCondition?(obj:MarkedCondition): T;
+        StalematedCondition?(obj:StalematedCondition): T;
+        NeutralCondition?(obj:NeutralCondition): T;
+        OnBoardCondition?(obj:OnBoardCondition): T;
+        PieceCondition?(obj:PieceCondition): T;
+        PositionCondition?(obj:PositionCondition): T;
+        PositionFlagCondition?(obj:PositionFlagCondition): T;
+        AbsoluteConfigCondition?(obj:AbsoluteConfigCondition): T;
+        RelativeConfigCondition?(obj:RelativeConfigCondition): T;
+
+        Statement?(obj:Statement): T;
+        AddStatement?(obj:AddStatement): T;
+        BackStatement?(obj:BackStatement): T;
+        ElseStatement?(obj:ElseStatement): T;
+        CascadeStatement?(obj:CascadeStatement): T;
+        StepDirectionStatement?(obj:StepDirectionStatement): T;
+        CaptureStatement?(obj:CaptureStatement): T;
+        ChangeOwnerStatement?(obj:ChangeOwnerStatement): T;
+        ChangeTypeStatement?(obj:ChangeTypeStatement): T;
+        CreateStatement?(obj:CreateStatement): T;
+        FlipStatement?(obj:FlipStatement): T;
+        GoStatement?(obj:GoStatement): T;
+        VerifyStatement?(obj:VerifyStatement): T;
+        IfStatement?(obj:IfStatement): T;
+        MarkStatement?(obj:MarkStatement): T;
     }
     
     ///////////////////////////////////////////////////////////////////////////////
@@ -462,10 +521,10 @@ export namespace zrfNodes {
             @parsePositional("string") flagName: string;
         }
         export class AndCondition extends Condition {
-            @parsePositional(parseConditionList) conditions: Condition[];
+            @parseRest(parseConditionList) conditions: Condition[];
         }
         export class OrCondition extends Condition {
-            @parsePositional(parseConditionList) conditions: Condition[];
+            @parseRest(parseConditionList) conditions: Condition[];
         }
 
         // Position-conditions
@@ -666,6 +725,7 @@ function zrfChildParse(parent:zrfNodes.Node, childField:string, childValue:SExp,
 export function _emitSampleCompilerPass() {
     console.log("var samplePass:zrf.ZrfCompilerPass<void> = {");
     for (var event of Object.keys(zrfNodes)) {
+        if (event.substring(0, 1) == event.substring(0,1).toLowerCase()) continue; // TODO unuglify
         if (event === "Node") continue;
         var _class = zrfNodes[event];
         console.log(`    ${event}(obj:zrf.${event}) {`);
@@ -687,8 +747,9 @@ export function _emitSampleCompilerPass() {
 export function _emitCompilerPassInterface() {
     console.log("interface ZrfCompilerPass<T> {");
     for (var event of Object.keys(zrfNodes)) {
+        if (event.substring(0, 1) == event.substring(0,1).toLowerCase()) continue; // TODO unuglify
         if (event === "Node") continue;
-        console.log(`    ${event}(obj:${event}): T;`)
+        console.log(`    ${event}?(obj:${event}): T;`)
     }
     console.log("}");
 }

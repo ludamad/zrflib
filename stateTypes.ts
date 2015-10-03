@@ -171,7 +171,6 @@ export interface PieceInfo {
     y: number;    
 }
 
-// This is user facing code, use getters and underscored members:
 export class GameState {
     _currentPlayerNum:number = 0;
 
@@ -185,8 +184,14 @@ export class GameState {
     public currentPlayer():Player {
         return this.gameStateDesc.enums.getPlayer(this._currentPlayerNum);
     }
-
-    public setPiece(cell, player, piece):void {
+    
+    public setStackAmount(stack:Stack, amount:number):void {
+        this._enumStackAmounts[stack.enumId] = amount;
+    }
+    public getStackAmount(stack:Stack):number {
+        return this._enumStackAmounts[stack.enumId];
+    }
+    public setPiece(cell:GraphNode, player:Player, piece:Piece):void {
         this._enumOwners[cell.enumId] = player.enumId;
         this._enumPieces[cell.enumId] = piece.enumId;
     }
@@ -196,10 +201,10 @@ export class GameState {
     }
 
     public hasPiece(cell) {
-        return this.getPieceType(cell) != null;
+        return this.getPiece(cell) != null;
     }
 
-    public getPieceType(cell):Piece {
+    public getPiece(cell):Piece {
         var eId = this._enumPieces[cell.enumId];
         if (eId === -1) {
             return null;
@@ -276,6 +281,7 @@ export class Options {
 // This is user facing code, use getters and underscored members:
 export class GameStateDescriptor {
     enums = new Enumerators();
+    turnOrder:Player[] = [];
     private _turnsCanPass:boolean = false;
     _initialState:GameState;
     private _shapeFinalized = false;
@@ -368,7 +374,7 @@ export class GameStateDescriptor {
                 return cell;
             }
         }
-        throw new Error("boarders.ts: Graph node was not found. Is your graph node naming convention consistent?");
+        throw new Error(`boarders.ts: Graph node "${id}" was not found. Is your graph node naming convention consistent?`);
     }
 
 

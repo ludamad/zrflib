@@ -15,6 +15,23 @@ export abstract class Enumerable {
     enumId:number;
 }
 
+export class EnumerableMap<K extends Enumerable, V> {
+    map = {};
+    get(key:K):V {
+        if (typeof key.enumId === "undefined") {
+            throw new Error("enumId not set on Enumerable in EnumerableMap.get!");
+        }
+        return map[key.enumId];
+    }
+    set(key:K, val:V) {
+        if (typeof key.enumId === "undefined") {
+            throw new Error("enumId not set on Enumerable in EnumerableMap.get!");
+        }
+        map[key.enumId] = val;
+    }
+}
+
+
 export function assert(val:boolean, msg?:string) {
     if (!val) throw new Error(msg);
 }

@@ -81,7 +81,7 @@ export function sexpParse(str:string):SExp {
     if (stack.head === null ||
         stack.tail !== null ||
         stack.head.tail !== null) {
-        throw new SyntaxError("Invalid s-expression.");
+        throw new SyntaxError("Invalid s-expression. ");
     }
 
     return stack.head.head;
