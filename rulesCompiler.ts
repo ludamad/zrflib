@@ -43,15 +43,15 @@ export class GameStateComponents {
     idToPiece : StrMap<stateTypes.Piece> = {};
     idToGraphNode : StrMap<stateTypes.GraphNode> = {};
     idToDirection : StrMap<stateTypes.Direction> = {};
-    playerMoves = new EnumerableMap<stateTypes.Player, zrf.Statement[][]>();
-    playerDrops = new EnumerableMap<stateTypes.Player, zrf.Statement[][]>();
+    pieceMoves = new EnumerableMap<stateTypes.Piece, zrf.Statement[][]>();
+    pieceDrops = new EnumerableMap<stateTypes.Piece, zrf.Statement[][]>();
 }
 
 type PostFinalizeFunc = () => void;
 
 // In the first compilation pass, we gather components of the GameStateDescriptor
 function rulesCompileWorker(components:GameStateComponents, afterFinalize: (PostFinalizeFunc)=>void) : void {
-    var {node, rules, idToDirection, idToPiece, idToGraphNode, idToPlayer, playerMoves, playerDrops} = components;
+    var {node, rules, idToDirection, idToPiece, idToGraphNode, idToPlayer, pieceMoves, pieceDrops} = components;
     var currentBoardZrf:zrf.Board = null;   
     var currentGrid:stateTypes.Grid = null;
 
@@ -79,10 +79,10 @@ function rulesCompileWorker(components:GameStateComponents, afterFinalize: (Post
                 piece.setImage(idToPlayer[playerName], obj.images[playerName]);
             }
             if (obj.moves) {
-                playerMoves.set(piece, obj.moves.moves);
+                pieceMoves.set(piece, obj.moves.moves);
             }
             if (obj.drops) {
-                playerDrops.set(piece, obj.drops.drops);
+                pieceDrops.set(piece, obj.drops.drops);
             }
         },
         Board(obj:zrf.Board) {

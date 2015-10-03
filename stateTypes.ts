@@ -39,12 +39,12 @@ export class GraphNode extends StateComponent {
     }
 
     public next(dir:Direction): GraphNode {
-        var nextEnumId = dir.next[this.enumId];
+        var nextEnumId = dir._next[this.enumId];
         if (nextEnumId == null) return null;
         return this.gameStateDesc.enums.getGraphNode(nextEnumId);
     }
     public prev(dir:Direction): GraphNode {
-        var prevEnumId = dir.next[this.enumId];
+        var prevEnumId = dir._next[this.enumId];
         if (prevEnumId == null) return null;
         return this.gameStateDesc.enums.getGraphNode(prevEnumId);
     }
@@ -78,9 +78,19 @@ export class Stack extends StateComponent {
 }
 
 export class Direction extends StateComponent {
-    constructor(public gameStateDesc:GameStateDescriptor, public prev : number[], public next:number[]) {
+    constructor(public gameStateDesc:GameStateDescriptor, public _prev : number[], public _next:number[]) {
         super(gameStateDesc);
         gameStateDesc.enums.directions.add(this);
+    }
+    next(node:GraphNode):GraphNode {
+        let id = this._next[node.enumId];
+        if (id === -1) return null;
+        return this.gameStateDesc.enums.getGraphNode(id);
+    }
+    prev(node:GraphNode) {
+        let id = this._prev[node.enumId];
+        if (id === -1) return null;
+        return this.gameStateDesc.enums.getGraphNode(id);
     }
 }
 
@@ -171,6 +181,7 @@ export interface PieceInfo {
     y: number;    
 }
 
+// This is user facing code, use getters and underscored members:
 export class GameState {
     _currentPlayerNum:number = 0;
 
@@ -227,9 +238,7 @@ export class GameState {
         for (var i = 0; i < this._enumOwners.length; i++) {
             var owner = this.gameStateDesc.enums.getPlayer(this._enumOwners[i]);
             var typeEnum = this._enumPieces[i];
-            if (typeEnum == -1) {
-                pieces.push(null);
-            } else {
+            if (typeEnum !== -1) {
                 var cell = this.gameStateDesc.cellList()[i];
                 pieces.push({owner,
                     type: this.gameStateDesc.enums.getPiece(typeEnum), 
@@ -367,7 +376,11 @@ export class GameStateDescriptor {
     public getPlayers():Player[] {
         return this.enums.players.list;
     }
-    public getCell(id):GraphNode {
+    
+    public getPieces():Piece[] {
+        return this.enums.pieces.list;
+    }
+    public getCell(id:string):GraphNode {
         for (var graph of this.enums.graphs.list) {
             var cell = graph.getById(id);
             if (cell != null) {
