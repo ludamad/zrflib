@@ -19,7 +19,7 @@
 
 "use strict";
 
-import {arrayCopy, arrayWithValueNTimes, mapUntilN, mapNByM, unionToArray, Enumerable, Enumerator} from "./common/common";
+import {arrayCopy, arrayCopyTo, arrayWithValueNTimes, mapUntilN, mapNByM, unionToArray, Enumerable, Enumerator} from "./common/common";
 
 export abstract class StateComponent extends Enumerable {
     constructor(public gameStateDesc:GameStateDescriptor) {
@@ -33,7 +33,7 @@ export abstract class StateComponent extends Enumerable {
 
 // This is user facing code, use getters and underscored members:
 export class GraphNode extends StateComponent {
-    constructor(gameStateDesc:GameStateDescriptor, public id, public parent, public x:number, public y:number) {
+    constructor(gameStateDesc:GameStateDescriptor, public id:string, public parent:Graph, public x:number, public y:number) {
         super(gameStateDesc);
         gameStateDesc.enums.graphNodes.add(this)
     }
@@ -47,6 +47,13 @@ export class GraphNode extends StateComponent {
         var prevEnumId = dir._next[this.enumId];
         if (prevEnumId == null) return null;
         return this.gameStateDesc.enums.getGraphNode(prevEnumId);
+    }
+}
+
+export class Attribute extends StateComponent {
+    constructor(gameStateDesc:GameStateDescriptor,  public piece:Piece, public id:string, public defaultVal:boolean, enumId:number) {
+        super(gameStateDesc);
+        this.enumId = enumId;
     }
 }
 
@@ -78,9 +85,22 @@ export class Stack extends StateComponent {
 }
 
 export class Direction extends StateComponent {
+    _symmetry:Direction[] = [];
     constructor(public gameStateDesc:GameStateDescriptor, public _prev : number[], public _next:number[]) {
         super(gameStateDesc);
         gameStateDesc.enums.directions.add(this);
+    }
+    setSymmetry(player:Player, dir:Direction) {
+        while (this._symmetry.length <= player.enumId) {
+            this._symmetry.push(this);
+        }
+        this._symmetry[player.enumId] = dir;
+    }
+    getSymmetry(player:Player) {
+        if (this._symmetry.length <= player.enumId) {
+            return this;
+        }
+        return this._symmetry[player.enumId];
     }
     next(node:GraphNode):GraphNode {
         let id = this._next[node.enumId];
@@ -162,6 +182,16 @@ export class Player extends StateComponent {
 // This is user facing code, use getters and underscored members:
 export class Piece extends StateComponent {
     images = {};
+    attributes = [];
+    startingAttributes:number = 0;
+    public attribute(id:string, defaultVal:boolean) {
+        let attribute = new Attribute(this.gameStateDesc, this, id, defaultVal, this.attributes.length);
+        if (defaultVal) {
+            this.startingAttributes |= (1 << this.attributes.length);
+        }
+        this.attributes.push(attribute);
+        return attribute;
+    }
     constructor(gameStateDesc:GameStateDescriptor, public id:string) {
         super(gameStateDesc);
         gameStateDesc.enums.pieces.add(this);
@@ -177,8 +207,7 @@ export class Piece extends StateComponent {
 export interface PieceInfo {
     owner: Player;
     type: Piece;
-    x: number; 
-    y: number;    
+    cell: GraphNode;
 }
 
 // This is user facing code, use getters and underscored members:
@@ -188,14 +217,30 @@ export class GameState {
     constructor(public gameStateDesc:GameStateDescriptor, 
         public _enumOwners:number[]      = [],
         public _enumPieces:number[]      = [],
+        public _enumAttributes:number[]      = [],
         public _enumStackAmounts:number[]= []) {
     }
 
+    public copyTo(g:GameState) {
+        arrayCopyTo(this._enumOwners, g._enumOwners);
+        arrayCopyTo(this._enumPieces, g._enumPieces);
+        arrayCopyTo(this._enumStackAmounts, g._enumStackAmounts);
+        arrayCopyTo(this._enumAttributes, g._enumAttributes);
+        g._currentPlayerNum = this._currentPlayerNum;
+    }
 
     public currentPlayer():Player {
         return this.gameStateDesc.enums.getPlayer(this._currentPlayerNum);
     }
     
+    public setPieceAttribute(cell:GraphNode, attribute:Attribute, value:boolean):void {
+        let mask = 1 << attribute.enumId;
+        if (value) {
+            this._enumAttributes[cell.enumId] |= mask;
+        } else {
+            this._enumAttributes[cell.enumId] &= ~mask;
+        }
+    }
     public setStackAmount(stack:Stack, amount:number):void {
         this._enumStackAmounts[stack.enumId] = amount;
     }
@@ -205,9 +250,19 @@ export class GameState {
     public setPiece(cell:GraphNode, player:Player, piece:Piece):void {
         this._enumOwners[cell.enumId] = player.enumId;
         this._enumPieces[cell.enumId] = piece.enumId;
+        this._enumAttributes[cell.enumId] = piece.startingAttributes;
     }
 
-    public getPieceOwner(cell):Player {
+    public clearPiece(cell:GraphNode):void {
+        this._enumOwners[cell.enumId] = -1;
+        this._enumPieces[cell.enumId] = -1;
+        this._enumAttributes[cell.enumId] = 0;
+    }
+
+    public hasPieceAttribute(cell:GraphNode, attribute:Attribute):boolean {
+        return (this._enumAttributes[cell.enumId] & (1 << attribute.enumId)) !== 0;
+    }
+    public getPieceOwner(cell:GraphNode):Player {
         return this.gameStateDesc.enums.getPlayer(this._enumOwners[cell.enumId]);
     }
 
@@ -215,7 +270,7 @@ export class GameState {
         return this.getPiece(cell) != null;
     }
 
-    public getPiece(cell):Piece {
+    public getPiece(cell:GraphNode):Piece {
         var eId = this._enumPieces[cell.enumId];
         if (eId === -1) {
             return null;
@@ -223,14 +278,13 @@ export class GameState {
         return this.gameStateDesc.enums.getPiece(eId);
     }
 
-    public movePiece(cell1, cell2) {
+    public movePiece(cell1:GraphNode, cell2:GraphNode) {
         this._enumOwners[cell2.enumId] = this._enumOwners[cell1.enumId];
         this._enumPieces[cell2.enumId] = this._enumPieces[cell1.enumId];
+        this._enumAttributes[cell2.enumId] = this._enumAttributes[cell1.enumId];
         this._enumOwners[cell1.enumId] = -1;
         this._enumPieces[cell1.enumId] = -1;
-        if (cell1.uiCell != null) {
-            return cell1.uiCell.movePiece(cell2.uiCell);
-        }
+        this._enumAttributes[cell1.enumId] = 0;
     }
 
     public pieces():PieceInfo[] {
@@ -240,10 +294,7 @@ export class GameState {
             var typeEnum = this._enumPieces[i];
             if (typeEnum !== -1) {
                 var cell = this.gameStateDesc.cellList()[i];
-                pieces.push({owner,
-                    type: this.gameStateDesc.enums.getPiece(typeEnum), 
-                    x: cell.x, y: cell.y
-                });
+                pieces.push({owner, type: this.gameStateDesc.enums.getPiece(typeEnum), cell});
             }
         }
         return pieces;
@@ -261,6 +312,7 @@ export class Enumerators {
     stacks = new Enumerator<Stack>();
     players = new Enumerator<Player>();
     pieces = new Enumerator<Piece>();
+    attributes = new Enumerator<Attribute>();
 
     getGraph(enumId:number):Graph {
         return this.graphs.list[enumId];
@@ -279,6 +331,9 @@ export class Enumerators {
     }
     getStack(enumId:number):Stack {
         return this.stacks.list[enumId];
+    }
+    getAttribute(enumId:number):Attribute {
+        return this.attributes.list[enumId];
     }
 }
 
@@ -323,6 +378,7 @@ export class GameStateDescriptor {
         this._shapeFinalized = true;
         this._initialState._enumPieces = arrayWithValueNTimes(-1, this.enums.graphNodes.total());
         this._initialState._enumOwners = arrayWithValueNTimes(-1, this.enums.graphNodes.total());
+        this._initialState._enumAttributes = arrayWithValueNTimes(0, this.enums.graphNodes.total());
     }
 
     public cellList() {
@@ -334,6 +390,13 @@ export class GameStateDescriptor {
         for (var cellId of cellIds) {
             var cell = this.getCell(cellId);
             this._initialState._enumPieces[cell.enumId] = piece.enumId;
+            let defaultAttributes = 0;
+            for (let attribute of piece.attributes) {
+                if (attribute.defaultVal) {
+                    defaultAttributes |= 1 << attribute.enumId; 
+                }
+            }
+            this._initialState._enumAttributes[cell.enumId] = defaultAttributes;
             this._initialState._enumOwners[cell.enumId] = player.enumId;
         }
     }
@@ -342,7 +405,11 @@ export class GameStateDescriptor {
         this._ensureFinalized(/* Finalize if necessary: */true);
         this._initialState._enumStackAmounts[stack.enumId] = startAmount;
     }
-
+    
+    public attribute(piece:Piece, id:string, defaultVal:boolean) {
+        this._ensureNotFinalized();
+        piece.attribute(id, defaultVal);
+    }
     public piece(id:string) {
         this._ensureNotFinalized();
         return new Piece(this, id);

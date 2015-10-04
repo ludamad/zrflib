@@ -21,13 +21,13 @@ export class EnumerableMap<K extends Enumerable, V> {
         if (typeof key.enumId === "undefined") {
             throw new Error("enumId not set on Enumerable in EnumerableMap.get!");
         }
-        return map[key.enumId];
+        return this.map[key.enumId];
     }
     set(key:K, val:V) {
         if (typeof key.enumId === "undefined") {
             throw new Error("enumId not set on Enumerable in EnumerableMap.get!");
         }
-        map[key.enumId] = val;
+        this.map[key.enumId] = val;
     }
 }
 
@@ -58,6 +58,11 @@ export function arrayCopy<T>(obj:T[]):T[] {
         copy.push(obj[i]);
     }
     return copy;
+}
+export function arrayCopyTo<T>(obj1:T[], obj2:T[]) {
+    for (let i = 0; i < obj1.length; i++) {
+        obj2[i] = obj1[i];
+    }
 }
 
 export class Enumerator<T extends Enumerable> {
