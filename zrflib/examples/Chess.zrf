@@ -1,0 +1,1425 @@
+; *** Chess
+; *** Copyright 1998-2002 Zillions Development
+; v.2.0
+
+; You need to purchase Zillions of Games to load this rules file
+; Visit the Zillions web site at http://www.zillions-of-games.com
+
+(version "2.0")
+
+(define leap1        ($1    (verify not-friend?) add) )
+(define leap2        ($1 $2 (verify not-friend?) add) )
+(define king-shift   ($1    (verify not-friend?) (set-attribute never-moved? false) add) )
+
+(define slide        ($1 (while empty? add $1) (verify not-friend?) add))
+(define rook-slide (
+  $1
+  (while empty? (set-attribute never-moved? false) add $1)
+  (verify not-friend?)
+  (set-attribute never-moved? false)
+  add
+))
+
+(define O-O
+	 ( (verify never-moved?)
+	   e ; KB1
+	   (verify empty?)
+	   e ; KN1
+	   (verify empty?)
+	   cascade
+	   e ; KR1
+	   (verify (and friend? (piece? Rook) never-moved?) )
+	   from
+	   back ; K1
+		 ; Save expensive not-attacked?s for last
+	   (verify not-attacked?)
+	   e ; KB1
+	   (verify not-attacked?)
+	   to
+	   (set-attribute never-moved? false)
+		 ; We could check if KN1 is attacked too, but this isn't
+		 ; really necessary since Zillions doesn't allow any moves
+		 ; into check
+	   e ; KN1
+	   (set-attribute never-moved? false)
+	   add
+	 )
+)
+
+(define O-O-O
+     ( (verify never-moved?)
+       w ; Q1
+       (verify empty?)
+       w ; QB1
+       (verify empty?)
+       cascade
+       w ; QN1
+       (verify empty?)
+       w ; QR1
+       (verify (and friend? (piece? Rook) never-moved?) )
+       from
+       back ; K1
+         ; Save expensive not-attacked?s for last
+       (verify not-attacked?)
+       w ; Q1
+       (verify not-attacked?)
+       to
+       (set-attribute never-moved? false)
+         ; We could check if KN1 is attacked too, but this isn't
+         ; really necessary since Zillions doesn't allow any moves
+         ; into check
+       w ; QB1
+       (set-attribute never-moved? false)
+       add
+     )
+)
+(define Pawn-add
+   (if (in-zone? promotion-zone) (add Knight Bishop Rook Queen) else add)
+)
+(define Pawn-move
+   (
+      n
+      (verify empty?)
+      (Pawn-add)
+      (verify (in-zone? third-rank))
+      n
+      (verify empty?)
+      add
+   )
+)
+(define Pawn-capture
+   (
+      $1
+      (verify enemy?)
+      (Pawn-add)
+   )
+)
+(define En-Passant
+   (
+      $1
+      (verify enemy?)
+      (verify last-to?)
+      (verify (piece? Pawn))
+      capture
+      n
+      to
+      n
+      (verify last-from?)
+      add
+   )
+)
+
+(define Board-Definitions
+  (image "images\Chess\SHaag\Chess8x8.bmp" "images\Chess\Chess8x8.bmp")
+  (grid
+     (start-rectangle 5 5 53 53)
+     (dimensions
+         ("a/b/c/d/e/f/g/h" (49 0)) ; files
+         ("8/7/6/5/4/3/2/1" (0 49)) ; ranks
+     )
+     (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+     )
+  )
+  (symmetry Black (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+  (zone
+     (name promotion-zone)
+     (players White)
+     (positions a8 b8 c8 d8 e8 f8 g8 h8)
+  )
+  (zone
+     (name promotion-zone)
+     (players Black)
+     (positions a1 b1 c1 d1 e1 f1 g1 h1)
+  )
+  (zone
+     (name third-rank)
+     (players White)
+     (positions a3 b3 c3 d3 e3 f3 g3 h3)
+  )
+  (zone
+     (name third-rank)
+     (players Black)
+     (positions a6 b6 c6 d6 e6 f6 g6 h6)
+  )
+)
+
+(game
+   (title "Chess")
+   (description "Object: Checkmate the opponent's King by attacking
+	   it so it cannot escape.  To see a description of how a piece moves
+	   right-click on it to bring up its properties dialog.\\
+         Try playing one of the many exciting variants.")
+   (history "Chess is a modern version of an ancient Indian game called Shatranj.  The
+       earliest record of Shatranj is found in a Persian work called
+       Karnamak-i-Artakhshatr-i-Papakan written in about A.D. 600.   The present-day
+       form of chess is a little over 100 years old: according to Hooper and Whyld's
+       `The Oxford Companion to Chess`, en passant capture was universally adopted in
+       1880, although the initial double step for pawns dates from about the 13th
+       century.   The most important changes from Shatranj to Chess, expanded moves for
+       the queen and bishop, date from about 1475.    Castling began sometime in the
+       16th century, but there were many variants of king and rook placement until
+       the modern standard was established.")
+   (strategy "In the opening, try to develop your pieces more than your pawns.  Always
+       protect your King.  Look for ways to exchange lower valued pieces for larger valued
+       ones.  Generally, if a Pawn is worth 1 point, then a Bishop or Knight is worth 3,
+       a Rook is worth 5 and a Queen worth 9 points.")
+   (option "prevent flipping" 2)
+   (win-sound "Audio\Orchestra_CF.wav")
+   (loss-sound "Audio\Orchestra_FC.wav")
+   (click-sound "Audio\Pickup.wav")
+   (release-sound "Audio\WoodThunk.wav")
+   (players White Black)
+   (turn-order White Black)
+   (board (Board-Definitions))
+
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+
+   (piece
+      (name Pawn)
+      (help "Pawn: moves forward, captures diagonally, can promote on 8th row")
+      (description "Pawn\A Pawn can move straight ahead one square, or two squares from
+           its starting position.  A Pawn captures by moving one square ahead and
+           diagonally.  If a Pawn reaches the far rank it promotes, changing into
+           a Knight, Bishop, Rook, or Queen.  On rare occasions Pawns can also execute
+           a move called `En Passant`, or `in passing`.  This allows a Pawn to take
+           an enemy Pawn that has just moved two squares.")
+      (image White "images\Chess\SHaag\wpawn.bmp" "images\Chess\wpawn.bmp"
+             Black "images\Chess\SHaag\bpawn.bmp" "images\Chess\bpawn.bmp")
+      (moves
+         (Pawn-capture nw)
+         (Pawn-capture ne)
+         (Pawn-move)
+         (En-Passant e)
+         (En-Passant w)
+      )
+   )
+
+   (piece
+      (name Knight)
+	  (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.")
+      (image White "images\Chess\SHaag\wknight.bmp" "images\Chess\wknight.bmp"
+             Black "images\Chess\SHaag\bknight.bmp" "images\Chess\bknight.bmp")
+      (moves
+	     (leap2 n ne)
+	     (leap2 n nw)
+	     (leap2 s se)
+	     (leap2 s sw)
+	     (leap2 e ne)
+	     (leap2 e se)
+	     (leap2 w nw)
+	     (leap2 w sw)
+      )
+   )
+
+   (piece
+      (name Bishop)
+	  (help "Bishop: slides diagonally any number of squares")
+      (description "Bishop\A Bishop moves any number of squares on a diagonal.  It may
+           not leap over other pieces.")
+      (image White "images\Chess\SHaag\wbishop.bmp" "images\Chess\wbishop.bmp"
+             Black "images\Chess\SHaag\bbishop.bmp" "images\Chess\bbishop.bmp")
+      (moves
+         (slide ne)
+         (slide nw)
+         (slide se)
+         (slide sw)
+      )
+   )
+
+   (piece
+      (name Rook)
+	  (help "Rook: slides any number of squares along the row or column.")
+      (description "Rook\A Rook moves any number of squares orthogonally on a rank
+           or a file.  It may not leap over other pieces.")
+      (image White "images\Chess\SHaag\wrook.bmp" "images\Chess\wrook.bmp"
+             Black "images\Chess\SHaag\brook.bmp" "images\Chess\brook.bmp")
+      (attribute never-moved? true)
+      (moves
+         (rook-slide n)
+         (rook-slide e)
+         (rook-slide s)
+         (rook-slide w)
+      )
+   )
+
+   (piece
+      (name Queen)
+	  (help "Queen: can slide any number of squares in any direction")
+      (description "Queen\A Queen moves any number of squares in a straight line.
+          It may not leap over other pieces.")
+      (image White "images\Chess\SHaag\wqueen.bmp" "images\Chess\wqueen.bmp"
+             Black "images\Chess\SHaag\bqueen.bmp" "images\Chess\bqueen.bmp")
+      (moves
+         (slide n)
+         (slide e)
+         (slide s)
+         (slide w)
+         (slide ne)
+         (slide nw)
+         (slide se)
+         (slide sw)
+      )
+   )
+
+   (piece
+      (name King)
+	  (help "King: steps 1 square in any direction to a safe square")
+      (description "King\A King can move to any adjacent square, but never to a 
+	      square where it can be captured.  It may also `castle`
+          with the Rook if neither the Rook nor King has moved yet and there is
+          nothing in between them.  In castling the King moves two squares nearer
+          the Rook and the Rook leaps to the far side of the King.  You may not
+          castle out of or through check, or if the King or Rook involved has 
+		  previously moved.")
+      (image White "images\Chess\SHaag\wking.bmp" "images\Chess\wking.bmp"
+             Black "images\Chess\SHaag\bking.bmp" "images\Chess\bking.bmp")
+      (attribute never-moved? true)
+      (moves
+         (king-shift n)
+         (king-shift e)
+         (king-shift s)
+         (king-shift w)
+         (king-shift ne)
+         (king-shift nw)
+         (king-shift se)
+         (king-shift sw)
+         (O-O)
+         (O-O-O)
+      )
+   )
+
+   (loss-condition (White Black) (checkmated King) )
+)
+
+; **************************************************************************
+; VARIANTS WHERE THE KING ISN'T ROYAL
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+(define progressive-turns
+   (turn-order
+      White
+      Black Black
+      White White White
+      Black Black Black Black
+      White White White White White
+      Black Black Black Black Black Black
+      White White White White White White White
+      Black Black Black Black Black Black Black Black
+      White White White White White White White White White
+      Black Black Black Black Black Black Black Black Black Black
+      White White White White White White White White White White White
+      Black Black Black Black Black Black Black Black Black Black Black Black
+      White White White White White White White White White White White White White
+      Black Black Black Black Black Black Black Black Black Black Black Black Black Black
+      White White White White White White White White White White White White White White White
+     repeat
+      Black Black Black Black Black Black Black Black Black Black Black Black Black Black Black Black
+      White White White White White White White White White White White White White White White White
+   )
+)
+
+(define ThruCheck_O-O
+	 ( (verify never-moved?)
+	   e ; KB1
+	   (verify empty?)
+	   mark
+	   e ; KN1
+	   (verify empty?)
+	   cascade
+	   (set-attribute never-moved? false)
+	   e ; KR1
+	   (verify (and friend? (piece? Rook) never-moved?) )
+	   from
+	   back ; KB1
+	   (set-attribute never-moved? false)
+	   add
+	 )
+)
+(define ThruCheck_O-O-O
+     ( (verify never-moved?)
+       w ; Q1
+       (verify empty?)
+	   mark
+       w ; QB1
+       (verify empty?)
+       cascade
+       (set-attribute never-moved? false)
+       w ; QN1
+       (verify empty?)
+       w ; QR1
+       (verify (and friend? (piece? Rook) never-moved?) )
+       from
+       back ; Q1
+       (set-attribute never-moved? false)
+       add
+     )
+)
+
+(define unroyal-King
+  (piece
+    (name King)
+    (help "King: steps 1 square in any direction, castles with rook")
+    (description "King\A non-royal King can move to any adjacent square.  In
+	     castling the King moves two squares nearer the Rook and the Rook
+		 leaps to the far side of the King.  It can castle through check
+		 if desired.  The non-royal King can be captured like any other piece.")
+    (image White "images\Chess\SHaag\wking.bmp" "images\Chess\wking.bmp"
+           Black "images\Chess\SHaag\bking.bmp" "images\Chess\bking.bmp")
+    (attribute never-moved? true)
+    (moves
+       (king-shift n)
+       (king-shift e)
+       (king-shift s)
+       (king-shift w)
+       (king-shift ne)
+       (king-shift nw)
+       (king-shift se)
+       (king-shift sw)
+	   (ThruCheck_O-O)
+	   (ThruCheck_O-O-O)
+    )
+  )
+)
+
+; These macros allow promotion to a King
+(define unroyal-Pawn-add      (if (in-zone? promotion-zone) (add Knight Bishop Rook Queen King) else add) )
+(define unroyal-Pawn-capture  ($1 (verify enemy?) (unroyal-Pawn-add)) )
+(define unroyal-Pawn-move (
+	n (verify empty?) (unroyal-Pawn-add)
+	(verify (in-zone? third-rank)) n (verify empty?) add
+))
+
+(define unroyal-Pawn
+   (piece
+      (name Pawn)
+	  (help "Pawn: moves forward, captures diagonally, can promote on 8th row to KQRBN")
+      (description "Pawn\A Pawn can move straight ahead one square, or two squares
+	     from its starting position.  A Pawn captures by moving one square ahead and
+		 diagonally.  If a Pawn reaches the far rank it promotes, changing into a
+		 Knight, Bishop, Rook, Queen, or (in this variant) even a King.  On rare
+		 occasions Pawns can also execute a move called `En Passant`, or `in
+		 passing`.  This allows a Pawn to take an enemy Pawn that has just moved two
+         squares.")
+      (image White "images\Chess\SHaag\wpawn.bmp" "images\Chess\wpawn.bmp"
+             Black "images\Chess\SHaag\bpawn.bmp" "images\Chess\bpawn.bmp")
+      (moves
+         (unroyal-Pawn-capture nw)
+         (unroyal-Pawn-capture ne)
+         (En-Passant e)
+         (En-Passant w)
+         (unroyal-Pawn-move)
+     )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Extinction Chess")
+   (description "Object: Make all of a type of piece extinct; e.g., win
+       by capturing both your opponent's Knights.");
+   (history "This game was invented by R. Wayne Schmittberger, and was first published
+       under his pseudonym `Paddy Smith` in the August 1985 issue of Games Magazine.
+       It was originally called `Survival of the Species` and became popular in
+       NOST under its present name.")
+   (strategy "Games are usually shorter than in orthodox chess and endgames are
+       almost impossible.  The queen is somewhat less powerful than in orthodox chess,
+       since it cannot move to attacked squares, even if protected.  Multiple piece
+       attacks (forks and pins) can be very powerful if one or more of the targets is
+       the last of its kind.  Exchanges can reap dividends if the remaining piece
+       of a pair can be subsequently attacked.")
+   (unroyal-King)
+   (unroyal-Pawn)
+   (loss-condition (White Black)
+        (or
+              (pieces-remaining 0 King)
+		      (pieces-remaining 0 Queen)
+		      (pieces-remaining 0 Rook)
+		      (pieces-remaining 0 Bishop)
+		      (pieces-remaining 0 Knight)
+		      (pieces-remaining 0 Pawn)
+		)
+   )
+)
+
+; **************************************************************************
+; These macros just force promotion to a King
+(define KC-Pawn-add      (if (in-zone? promotion-zone) (add King) else add) )
+(define KC-Pawn-capture  ($1 (verify enemy?) (KC-Pawn-add)) )
+(define KC-Pawn-move (
+	n (verify empty?) (KC-Pawn-add)
+	(verify (in-zone? third-rank)) n (verify empty?) add
+))
+(variant
+   (title "Kinglet Chess")
+   (description "Object: To capture all of your opponent's Pawns (Kinglets).\
+      The King is not royal and may be captured without ending the game.  Pawns are
+      always promoted to Kings.  Right-click on pieces to see how they move.")
+   (history "This game is one of the best creations of the prolific inventor of
+      chess variants, V. R. Parton.    It was invented in 1953, and appeared in
+      Boyer's second anthology of chess variants in 1954.   When Parton described
+      it in his own book `Chess -- Curiouser and Curiouser` in 1960, he called it
+      `Imperial Fiddlesticks`, after an exclamation by the White King in Lewis
+      Carroll's `Alice Through The Looking-Glass`.")
+   (strategy "Although it is dangerous to allow your opponent too great a material
+      advantage in pieces, Parton himself suggests sacrificing a minor piece (including
+      the non-royal king, which is about as strong as a knight or bishop) for a single
+      pawn, or a rook (perhaps even a queen!) for two pawns.   Forcing your opponent
+      to promote a pawn can also be a useful tactic: if you can force him to promote
+      his last remaining pawn, you win.")
+   (unroyal-King)
+   (piece
+      (name Pawn)
+	  (help "Pawn (Kinglet): moves forward, captures diagonally, promotes on 8th row to King")
+      (description "Pawn (Kinglet)\A Pawn can move straight ahead one square, or two squares
+        from its starting position.  A Pawn captures by moving one square ahead and
+        diagonally.  If a Pawn reaches the far rank it promotes to a non-royal King.  On rare
+        occasions Pawns can also execute a move called `En Passant`, or `in passing`.  This
+        allows a Pawn to take an enemy Pawn that has just moved two squares.\\
+        The object of the game is capture all of the opponent's Pawns.")
+	  (image White "images\Chess\SHaag\wpawn.bmp" "images\Chess\wpawn.bmp"
+                 Black "images\Chess\SHaag\bpawn.bmp" "images\Chess\bpawn.bmp")
+      (moves
+         (KC-Pawn-capture nw)
+         (KC-Pawn-capture ne)
+         (KC-Pawn-move)
+         (En-Passant e)
+         (En-Passant w)
+      )
+   )
+   (loss-condition (White Black) (pieces-remaining 0 Pawn))
+)
+
+; **************************************************************************
+(variant
+   (title "Take-All")
+   (description "Object: To capture all of your opponent's pieces.\The
+      King is not royal and may be captured without ending the
+	  game.  Pawns may be promoted to Kings.  Right-click on pieces to
+	  see how they move.")
+   (history "The origin of the game is not known.   In his books, V. R. Parton
+      referred to the game as `Mock Chess`.  If the single-move version is
+      too slow for you, try the progressive form!")
+   (strategy "Material is all-important.  The King is an ordinary piece, about
+        the strength of a knight.")
+   (unroyal-King)
+   (unroyal-Pawn)
+   (loss-condition (White Black) (pieces-remaining 0))
+)
+
+; **************************************************************************
+(variant
+   (title "Progressive Take-All")
+   (description "Object: To capture all of your opponent's pieces.\The
+      King is not royal and may be captured without ending the
+	  game.  Pawns may be promoted to Kings.  Right-click on pieces to
+	  see how they move.\\White gets 1 move, Black gets 2, White gets 3, etc.")
+   (history "Progressive Take-All was invented in 1979 by Giuseppe Dipilato, one
+      of the leading players in the Italian variant organization AISE.  It is
+      a popular game and was one of the seven variants selected for the First
+      Heterochess Olympics, an international team postal championship in 1989.")
+   (strategy "Bishops and queens are powerful in the opening.  Queens tend to
+      disappear rather quickly.  In the endgame, knights and rooks are more
+      powerful and bishops become weaker.  Single bishops are particularly
+      weak, as opposing pieces can easily move to squares of the opposite color.
+      As the number of moves per turn increases, watch for promotion opportunities
+      for both sides.  When ahead of the opponent in material, try to block his
+      remaining pawns from promoting.")
+   (unroyal-King)
+   (unroyal-Pawn)
+   (progressive-turns)
+   (loss-condition (White Black) (pieces-remaining 0))
+)
+
+; **************************************************************************
+;(define leap1-capture  ($1 (verify enemy?) add) )
+;(define leap1-move     ($1 (verify empty?) add) )
+(define leap2-capture ($1 $2 (verify enemy?) add) )
+(define leap2-move    ($1 $2 (verify empty?) add) )
+
+(define king-shift-capture ($1 (verify enemy?) (set-attribute never-moved? false) add) )
+(define king-shift-move    ($1 (verify empty?) (set-attribute never-moved? false) add) )
+
+(define slide-capture  ($1 (while empty? $1) (verify enemy?) add) )
+(define slide-move     ($1 (while empty? add $1)) )
+(define rook-slide-capture ($1 (while empty? $1) (verify enemy?) (set-attribute never-moved? false) add) )
+(define rook-slide-move    ($1 (while empty? (set-attribute never-moved? false) add $1)) )
+
+(variant
+   (title "Losing Chess")
+   (description "Object: To lose all of your pieces or be stalemated.\
+      All capturing is mandatory, though you may choose which capture to
+	  make.  The King is not royal and may be captured without ending the
+	  game.  Pawns may be promoted to a King.")
+   (history "This is one of the most popular chess variants, currently being played and
+      studied a lot in the Italian organization AISE (Associazione Italiana Scacchi
+	  Eterodossi).  A closely related variation `Take Me` was invented in 1874 and
+	  Losing Chess is probably much older than that.  The first known analysis dates
+	  from 1901.")
+   (strategy "It is possible to make a blunder from the very first move.  Be wary
+      of letting your Bishops get loose.  They are mobile enough so the opponent
+	  might devise a chain of captures for the Bishop to make, but not mobile enough
+	  that the Bishop will have choices of captures and thus be able to force a recapture.")
+   (move-priorities capture-move non-capture-move)
+
+   (piece
+      (name Pawn)
+	  (help "Pawn: moves forward, captures diagonally, can promote on 8th row to KQRBN")
+      (description "Pawn\A Pawn can move straight ahead one square, or two squares from
+           its starting position.  A Pawn captures by moving one square ahead and
+           diagonally.  If a Pawn reaches the far rank it promotes, changing into
+           a Knight, Bishop, Rook, Queen, or even a King.  On rare occasions Pawns can
+           also execute a move called `En Passant`, or `in passing`.  This allows a Pawn to
+           take an enemy Pawn that has just moved two squares.")
+      (image White "images\Chess\SHaag\wpawn.bmp" "images\Chess\wpawn.bmp"
+             Black "images\Chess\SHaag\bpawn.bmp" "images\Chess\bpawn.bmp")
+      (moves
+	     (move-type capture-move)
+         (unroyal-Pawn-capture nw)
+         (unroyal-Pawn-capture ne)
+         (En-Passant e)
+         (En-Passant w)
+		 (move-type non-capture-move)
+         (unroyal-Pawn-move)
+     )
+   )
+
+   (piece
+      (name Knight)
+	  (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.")
+      (image White "images\Chess\SHaag\wknight.bmp" "images\Chess\wknight.bmp"
+             Black "images\Chess\SHaag\bknight.bmp" "images\Chess\bknight.bmp")
+      (moves
+	     (move-type capture-move)
+	     (leap2-capture n ne)
+	     (leap2-capture n nw)
+	     (leap2-capture s se)
+	     (leap2-capture s sw)
+	     (leap2-capture e ne)
+	     (leap2-capture e se)
+	     (leap2-capture w nw)
+	     (leap2-capture w sw)
+	     (move-type non-capture-move)
+	     (leap2-move n ne)
+	     (leap2-move n nw)
+	     (leap2-move s se)
+	     (leap2-move s sw)
+	     (leap2-move e ne)
+	     (leap2-move e se)
+	     (leap2-move w nw)
+	     (leap2-move w sw)
+      )
+   )
+
+   (piece
+      (name Bishop)
+      (help "Bishop: slides diagonally any number of squares")
+      (description "Bishop\A Bishop moves any number of squares on a diagonal.  It may
+           not leap over other pieces.")
+      (image White "images\Chess\SHaag\wbishop.bmp" "images\Chess\wbishop.bmp"
+             Black "images\Chess\SHaag\bbishop.bmp" "images\Chess\bbishop.bmp")
+      (moves
+	     (move-type capture-move)
+         (slide-capture ne)
+         (slide-capture nw)
+         (slide-capture se)
+         (slide-capture sw)
+	     (move-type non-capture-move)
+         (slide-move ne)
+         (slide-move nw)
+         (slide-move se)
+         (slide-move sw)
+      )
+   )
+
+   (piece
+      (name Rook)
+	  (help "Rook: slides any number of squares along the row or column.")
+      (description "Rook\A Rook moves any number of squares orthogonally on a rank
+           or a file.  It may not leap over other pieces.")
+      (image White "images\Chess\SHaag\wrook.bmp" "images\Chess\wrook.bmp"
+             Black "images\Chess\SHaag\brook.bmp" "images\Chess\brook.bmp")
+      (attribute never-moved? true)
+      (moves
+ 	     (move-type capture-move)
+         (rook-slide-capture n)
+         (rook-slide-capture e)
+         (rook-slide-capture s)
+         (rook-slide-capture w)
+	     (move-type non-capture-move)
+         (rook-slide-move n)
+         (rook-slide-move e)
+         (rook-slide-move s)
+         (rook-slide-move w)
+      )
+   )
+
+   (piece
+      (name Queen)
+	  (help "Queen: can slide any number of squares in any direction")
+      (description "Queen\A Queen moves any number of squares in a straight line.
+          It may not leap over other pieces.")
+      (image White "images\Chess\SHaag\wqueen.bmp" "images\Chess\wqueen.bmp"
+             Black "images\Chess\SHaag\bqueen.bmp" "images\Chess\bqueen.bmp")
+      (moves
+  	     (move-type capture-move)
+         (slide-capture n)
+         (slide-capture e)
+         (slide-capture s)
+         (slide-capture w)
+         (slide-capture ne)
+         (slide-capture nw)
+         (slide-capture se)
+         (slide-capture sw)
+  	     (move-type non-capture-move)
+         (slide-move n)
+         (slide-move e)
+         (slide-move s)
+         (slide-move w)
+         (slide-move ne)
+         (slide-move nw)
+         (slide-move se)
+         (slide-move sw)
+      )
+   )
+
+   (piece
+      (name King)
+	  (help "King: steps 1 square in any direction, castles with rook")
+      (description "King\A King can move to any adjacent square.  It may also `castle`
+          with the Rook if neither the Rook nor King has moved yet and there is
+          nothing in between them.  In castling the King moves two squares nearer
+          the Rook and the Rook leaps to the far side of the King.  Unlike regular
+		  Chess, in Losing Chess there is nothing `royal` about the King and he
+		  may be captured like any other piece.")
+      (image White "images\Chess\SHaag\wking.bmp" "images\Chess\wking.bmp"
+             Black "images\Chess\SHaag\bking.bmp" "images\Chess\bking.bmp")
+      (attribute never-moved? true)
+      (moves
+  	     (move-type capture-move)
+         (king-shift-capture n)
+         (king-shift-capture e)
+         (king-shift-capture s)
+         (king-shift-capture w)
+         (king-shift-capture ne)
+         (king-shift-capture nw)
+         (king-shift-capture se)
+         (king-shift-capture sw)
+  	     (move-type non-capture-move)
+         (king-shift-move n)
+         (king-shift-move e)
+         (king-shift-move s)
+         (king-shift-move w)
+         (king-shift-move ne)
+         (king-shift-move nw)
+         (king-shift-move se)
+         (king-shift-move sw)
+         (ThruCheck_O-O)
+		 (ThruCheck_O-O-O)
+      )
+   )
+
+   (win-condition (White Black) (pieces-remaining 0))
+   (win-condition (White Black) stalemated)
+)
+
+; **************************************************************************
+; DOUBLE-MOVE VARIANTS
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+; **************************************************************************
+(variant
+   (title "Double-Move Chess (Capture)")
+   (description "Like normal Chess, except that each side moves twice.  Also,
+      the King is not royal and may captured.  There is no check -- the winner
+	  is the first person to capture the opponent's King.")
+   (history "In one form or another, Double-Move Chess has been enjoyed for
+      many centuries.  One particular version, Marseillais Chess, was played
+	  in the 1920's by many strong Chess players including Alekhine,
+	  Reti, Znosko-Borovsky, and Cheron.  Alekhine, known for his attacking
+	  play, was world champion in normal Chess.")
+   (strategy "Shield your King so the opponent can't check you.  If he can
+      check you on the first move, he can capture you on the second!  Watch
+	  for the opportunity to capture an enemy piece and then
+      escape on the second move.  Queens are particular agile in this regard.")
+   (turn-order White White Black Black)
+   (unroyal-King)
+   (loss-condition (White Black) (pieces-remaining 0 King))
+)
+
+; **************************************************************************
+(variant
+   (title "Double-Move Chess (Checkmate)")
+   (description "Like normal Chess, except that each side moves twice.  A King
+      that is in check doesn't have to get out of check until his second move.
+	  In fact, it is okay to move into check on the first move as long as you
+	  move out again on the second move.  Checking the opponent is only allowed
+	  on the second move.")
+   (history "In one form or another, Double-Move Chess has been enjoyed for
+      many centuries.  One particular version, Marseillais Chess, was played
+	  in the 1920's by many strong Chess players including Alekhine,
+	  Reti, Znosko-Borovsky, and Cheron.  Alekhine, known for his attacking
+	  play, was world champion in normal Chess.")
+   (strategy "Shield your King so the opponent can't check you.  If he can
+      check you on the first move, he can capture you on the second!  Watch
+	  for the opportunity to capture an enemy piece and then
+      escape on the second move.  Queens are particular agile in this regard.")
+   (turn-order White White Black Black)
+)
+
+; **************************************************************************
+(variant
+   (title "Monster Chess (4 Pawns)")
+   (description "White gets two moves for every move of Black's.
+      The object is to capture the opponent's King.  The White King may
+	  move into check on the first of his two moves.")
+   (history "Also known as Imperatore, this is a variant on the medieval
+      8 Pawn version.  With colors reversed this game was played by the
+	  an early mainframe computer program, MASTER.")
+   (strategy "White should get his King and Pawns as close as possible
+      to the Black King.  He should also look for opportunities to promote
+	  a Pawn, since a Queen should win quickly.  Black should play
+	  carefully to keep the White King at bay, keeping his pieces protecting
+	  each other and protecting the squares in front of them.")
+   (turn-order White White Black)
+   (board-setup
+      (White
+         (Pawn c2 d2 e2 f2)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+   (loss-condition (White Black) (pieces-remaining 0 King) )
+)
+
+; **************************************************************************
+(variant
+   (title "Monster Chess (8 Pawns)")
+   (description "White gets two moves for every move of Black's.
+      The object is to capture the opponent's King.  The White King may
+	  move into check on the first of his two moves.");
+   (history "As H. J. R. Murray shows in `A History of Chess`, this game
+      derives from medieval times.  Back then the moves of Queens and Bishops
+	  were limited compared to today and so White had an easier time of it.")
+   (strategy "The problem (c.1100) H. J. R. Murray describes is captioned
+      `White to play and win`.  However, with today's more powerful Queens
+	  and Bishops the result is more in doubt.  White should push forward,
+	  trying to protect his pawns and look for opportunities to infiltrate.   Black
+      should try to drive the white King back if possible, keeping him at
+	  a safe distance, and try to prevent Pawn promotions, which would most likely
+	  decide the game.")
+   (turn-order White White Black)
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+   (loss-condition (White Black) (pieces-remaining 0 King) )
+)
+
+; **************************************************************************
+; OTHER VARIANTS
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+; **************************************************************************
+(variant
+   (title "Cylindrical Chess")
+   (description "Chess played on a cylinder: the left and right edges wrap around.")
+   (history "Cylindrical Chess dates back at least to the early 20th century, where
+      it was a popular problem theme.   The game has also been a popular progressive
+      game in AISE.")
+   (strategy "The Queen and Bishop are relatively stronger than in chess due to
+      slightly greater mobility.   The knight has its maximum mobility anywhere in
+      the four middle ranks.   Learn to visualize all of the possible moves around
+      the board edges.")
+   (board
+      (Board-Definitions)
+      ; Connect left and right edges
+      (links e  (h1 a1) (h2 a2) (h3 a3) (h4 a4) (h5 a5) (h6 a6) (h7 a7) (h8 a8))
+      (links w  (a1 h1) (a2 h2) (a3 h3) (a4 h4) (a5 h5) (a6 h6) (a7 h7) (a8 h8))
+      (links ne (h1 a2) (h2 a3) (h3 a4) (h4 a5) (h5 a6) (h6 a7) (h7 a8))
+      (links nw (a1 h2) (a2 h3) (a3 h4) (a4 h5) (a5 h6) (a6 h7) (a7 h8))
+      (links se (h2 a1) (h3 a2) (h4 a3) (h5 a4) (h6 a5) (h7 a6) (h8 a7))
+      (links sw (a2 h1) (a3 h2) (a4 h3) (a5 h4) (a6 h5) (a7 h6) (a8 h7))
+   )
+)
+
+
+; **************************************************************************
+(define royal-leap2
+   ($1 $2 (verify not-friend?) (set-attribute never-moved? false) add)
+)
+; These macros allow promotion to a King, but not to a Knight
+(define knightmate-Pawn-add      (if (in-zone? promotion-zone) (add Bishop Rook Queen King) else add) )
+(define knightmate-Pawn-capture  ($1 (verify enemy?) (knightmate-Pawn-add)) )
+(define knightmate-Pawn-move (
+   n (verify empty?) (knightmate-Pawn-add)
+   (verify (in-zone? third-rank)) n (verify empty?) add)
+)
+(variant
+   (title "Knightmate")
+   (description "Like normal Chess, except that the Knights are interchanged
+      with the Kings and the object becomes to checkmate the Knight.  Kings
+      are not royal and may be taken.  The Knight may castle with a Rook.  Pawns
+      may not promote to Knights, but may promote to Kings.")
+   (history "Invented by Bruce Zimov in 1972.  The first Knightmate Open
+      occurred in Ohio in 1991.   It has also been popular in postal play
+      in NOST.   The game was independently invented in the early 1970's at
+      Sheffield University in England, where it was known as `Mate The Knight`.")
+   (strategy "Keep a careful watch on the squares next to your Knight: if it
+      is checked from an adjacent square, it won't be able to capture the
+      checking piece.")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (King b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (Knight e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (King b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (Knight e8)
+      )
+   )
+   (piece
+      (name Pawn)
+      (help "Pawn: moves forward, captures diagonally, can promote on 8th row to KQRB")
+      (description "Pawn\A Pawn can move straight ahead one square, or two squares
+          from its starting position.  A Pawn captures by moving one square ahead and
+          diagonally.  If a Pawn reaches the far rank it promotes, changing into a
+          Bishop, Rook, Queen, or (in this variant) even a King.  On rare
+          occasions Pawns can also execute a move called `En Passant`, or `in
+          passing`.  This allows a Pawn to take an enemy Pawn that has just moved two
+          squares.")
+      (image White "images\Chess\SHaag\wpawn.bmp" "images\Chess\wpawn.bmp"
+             Black "images\Chess\SHaag\bpawn.bmp" "images\Chess\bpawn.bmp")
+      (moves
+         (knightmate-Pawn-capture nw)
+         (knightmate-Pawn-capture ne)
+         (En-Passant e)
+         (En-Passant w)
+         (knightmate-Pawn-move)
+     )
+   )
+   (piece
+      (name Knight)
+	  (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.  A Knight that hasn't moved has the
+          option of castling with one of its Rooks.  This is achieved just as in
+          regular Chess.\\The object of this variant is to checkmate the Knight.")
+      (image White "images\Chess\SHaag\wknight.bmp" "images\Chess\wknight.bmp"
+             Black "images\Chess\SHaag\bknight.bmp" "images\Chess\bknight.bmp")
+      (attribute never-moved? true)
+      (moves
+	     (royal-leap2 n ne)
+	     (royal-leap2 n nw)
+	     (royal-leap2 s se)
+	     (royal-leap2 s sw)
+	     (royal-leap2 e ne)
+	     (royal-leap2 e se)
+	     (royal-leap2 w nw)
+	     (royal-leap2 w sw)
+         (O-O)
+         (O-O-O)
+      )
+   )
+   (piece
+      (name King)
+      (description "King\A King can move to any adjacent square.  It may not
+	     castle.  In this variant the King is not royal and may be captured.")
+      (help "King: steps 1 square in any direction")
+      (image White "images\Chess\SHaag\wking.bmp" "images\Chess\wking.bmp"
+             Black "images\Chess\SHaag\bking.bmp" "images\Chess\bking.bmp")
+      (moves
+         (leap1 n)
+         (leap1 e)
+         (leap1 s)
+         (leap1 w)
+         (leap1 ne)
+         (leap1 nw)
+         (leap1 se)
+         (leap1 sw)
+      )
+   )
+   (loss-condition (White Black) (checkmated Knight) )
+)
+
+; **************************************************************************
+(define NP-leap2        ($1 $2 (verify (or empty? (and not-friend? (or (piece? Pawn) (piece? King))))) add) )
+(define NP-slide        ($1 (while empty? add $1) (verify (and not-friend? (or (piece? Pawn) (piece? King)))) add))
+(define NP-rook-slide (
+  $1
+  (while empty? (set-attribute never-moved? false) add $1)
+  (verify (and not-friend? (or (piece? Pawn) (piece? King))))
+  (set-attribute never-moved? false)
+  add
+))
+
+(variant
+   (title "Non-Prise Chess")
+   (description "Non-Prise Chess is the same as orthodox chess except that
+                 Knights, Rooks, Bishops, and Queens cannot capture Knights
+                 Bishops, Rooks, or Queens.");
+   (history     "Non-Prise Chess was invented by Bruce Zimov in 1994.")
+   (strategy "Pieces (Knight, Bishop, Rook, Queen) can't defend their Pawns,
+       which makes Pawns easy prey.  Look to attack Pawns at the base of a
+	   Pawn chain.  Since Knights, Bishops, Rooks, and Queens are mostly
+	   immune from capture they make great blockades and can effectively
+	   shield the King from attack.  Look for aggresive ways to move out
+	   your pieces where they won't be easily dislodged by enemy Pawns.")
+   (piece
+      (name Knight)
+	  (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.
+		  In this variant, a Knight can't capture any Knights, Bishops, Rooks, or Queens.")
+      (image White "images\Chess\SHaag\wknight.bmp" "images\Chess\wknight.bmp"
+             Black "images\Chess\SHaag\bknight.bmp" "images\Chess\bknight.bmp")
+      (moves
+             (NP-leap2 n ne)
+             (NP-leap2 n nw)
+             (NP-leap2 s se)
+             (NP-leap2 s sw)
+             (NP-leap2 e ne)
+             (NP-leap2 e se)
+             (NP-leap2 w nw)
+             (NP-leap2 w sw)
+      )
+   )
+
+   (piece
+      (name Bishop)
+	  (help "Bishop: slides diagonally any number of squares")
+      (description "Bishop\A Bishop moves any number of squares on a diagonal.  It may
+          not leap over other pieces.
+		  In this variant, a Bishop can't capture any Knights, Bishops, Rooks, or Queens.")
+      (image White "images\Chess\SHaag\wbishop.bmp" "images\Chess\wbishop.bmp"
+             Black "images\Chess\SHaag\bbishop.bmp" "images\Chess\bbishop.bmp")
+      (moves
+         (NP-slide ne)
+         (NP-slide nw)
+         (NP-slide se)
+         (NP-slide sw)
+      )
+   )
+
+   (piece
+      (name Rook)
+	  (help "Rook: slides any number of squares along the row or column.")
+      (description "Rook\A Rook moves any number of squares orthogonally on a rank
+           or a file.  It may not leap over other pieces.
+		   In this variant, a Rook can't capture any Knights, Bishops, Rooks, or Queens.")
+      (image White "images\Chess\SHaag\wrook.bmp" "images\Chess\wrook.bmp"
+             Black "images\Chess\SHaag\brook.bmp" "images\Chess\brook.bmp")
+      (attribute never-moved? true)
+      (moves
+         (NP-rook-slide n)
+         (NP-rook-slide e)
+         (NP-rook-slide s)
+         (NP-rook-slide w)
+      )
+   )
+
+   (piece
+      (name Queen)
+	  (help "Queen: can slide any number of squares in any direction")
+      (description "Queen\A Queen moves any number of squares in a straight line.
+          It may not leap over other pieces.
+		  In this variant, a Queen can't capture any Knights, Bishops, Rooks, or Queens.")
+      (image White "images\Chess\SHaag\wqueen.bmp" "images\Chess\wqueen.bmp"
+             Black "images\Chess\SHaag\bqueen.bmp" "images\Chess\bqueen.bmp")
+      (moves
+         (NP-slide n)
+         (NP-slide e)
+         (NP-slide s)
+         (NP-slide w)
+         (NP-slide ne)
+         (NP-slide nw)
+         (NP-slide se)
+         (NP-slide sw)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Pocket Knight Chess")
+   (description "Same as regular chess except that each side begins
+       with an extra Knight `in his pocket.`  This Knight may dropped
+	 on any empty square in place of a regular move.");
+   (history "Also known as Tombola Chess, this game was popular in the
+       early 20th century.   Large tournaments were held in 1909 and 1910.
+       In the early versions of the game, the `pocket knight` was either
+       the queenside or kingside Knight, removed before the game.   The
+       game is generally played today with the standard array and a third
+       knight in hand.   The game has been played postally in NOST, and is
+       seen as a good way to gently introduce orthodox players to variant
+       play.")
+   (strategy "Most of the strategy of chess is sound; indeed, games have been
+       won without even using the pocket knight.   But possible drop squares
+       for either side should be kept in mind; knight forks can be particularly
+       devastating if the King and Queen, or Queen and Rook, are carelessly
+       situated.")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight off 1 b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight off 1 b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+   (piece
+      (name Knight)
+	  (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.")
+      (image White "images\Chess\SHaag\wknight.bmp" "images\Chess\wknight.bmp"
+             Black "images\Chess\SHaag\bknight.bmp" "images\Chess\bknight.bmp")
+      (moves
+	     (leap2 n ne)
+	     (leap2 n nw)
+	     (leap2 s se)
+	     (leap2 s sw)
+	     (leap2 e ne)
+	     (leap2 e se)
+	     (leap2 w nw)
+	     (leap2 w sw)
+      )
+      (drops ((verify empty?) add))
+   )
+)
+
+; **************************************************************************
+; TRAINING GAMES
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+; **************************************************************************
+(variant
+   (title "King vs. King")
+   (description "The object for the White King is to reach on of the starred squares
+      (f8 or h8) in the upper-right-hand corner of the chessboard.  The object for
+      Black is to prevent White from reaching these squares.\\
+      White can reach one of these squares by move 17.")
+   (history "This endgame training puzzle appears in `Essential Chess Endings
+      Explained Move by Move` (Chess Digest 1988) by International Master Jeremy Silman.")
+   (strategy "White can force a win.  To solve this puzzle every time you'll need to
+      understand the chess concepts of opposition, distant opposition, and outflanking.
+      Choose `Show Solution` under the Help menu to see the solution against good defense
+      by Black.")
+   (option "highlight goals" true)
+   (solution "Solutions\Chess\King_vs_King.zsg")
+   (board-setup
+      (White (King a1))
+      (Black (King a8))
+   )
+   (win-condition (White) (or (absolute-config King (f8)) (absolute-config King (h8))) )
+   (win-condition (Black) repetition)
+   (loss-condition (White) repetition)
+   (loss-condition (White Black) (checkmated King) ) ; needed to keep kings from touching
+)
+
+; **************************************************************************
+(variant
+   (title "Knight Hunting")
+   (description "The object for White is to capture the Knight, which he should be
+      able to do.  Black's object is to prevent this and Black wins if a 3-fold 
+      repetition occurs.  Black also wins if he captures White's Rook.\\Passing is
+      allowed.")
+   (history "This endgame training puzzle appears in `Winning Chess: Endings`
+      (Microsoft Press 1999) by International Grandmaster Yasser Seirawan.  It is 
+      useful practice for King and Rook vs. King and Knight endings.")
+   (strategy "White can force a win, though it can be tricky.  To solve this puzzle 
+      you'll need to gradually restrict the Knight's movement to force it to the 
+      edge of the board where it can be trapped.  Choose `Show Solution` under the 
+      Help menu to see possible play.  See how few moves you can use to trap the Knight.")
+   (option "pass turn" true)
+   (solution "Solutions\Chess\Knight_Hunting.zsg")
+   (board-setup
+      (White
+         (Rook b2)
+         (King a1)
+      )
+      (Black
+         (Knight e5)
+      )
+   )
+   (loss-condition (White) (captured Rook))
+   (loss-condition (Black) (captured Knight))
+   (loss-condition (White) (checkmated King) ) ; to force King away from Knight checks
+   (loss-condition (White) repetition)
+   (win-condition (Black) repetition)
+)
+
+
+; **************************************************************************
+; ODDS GAMES
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+; **************************************************************************
+(variant
+   (title "Pawn-Odds Chess")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Knight-Odds Chess")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Rook-Odds Chess")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+)
+
+
+
+; **************************************************************************
+; Other Different Starting Positions
+; **************************************************************************
+(variant
+   (title "-") ; --------------------------------------------------------
+)
+
+; **************************************************************************
+(variant
+   (title "King and Pawns")
+   (strategy "Try to promote a Pawn in order to checkmate, sacrificing Pawns
+      if necessary to break through.  In order to win you'll need to make 
+      very active use of your King.  Avoid weaknesses where the opposing King 
+      might be allowed to invade your position and steal your Pawns.")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (King e1)
+     )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (King e8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Little (3 Pawn) Chess")
+   (history "This game is commonly seen on Internet chess servers and there
+      are even computer programs written to play it.")
+   (strategy "Try to get a Queen to checkmate with.  Surprisingly, there is
+      no simple solution to this variation.  You'll want to use your King
+      to stop the enemy Pawns, while your opponent does likewise.  There
+      are various patterns where a King can halt Pawns, but then one side
+      will be in `zugzwang` and be forced to move.  If the Pawns have to move
+      they will generally be lost, while if the King has to move, the Pawns
+      will have an opportunity to advance further down the board.  Because
+      of zugzwang, it is sometimes advantageous to keep a Pawn on its
+      starting square, so it will have the option to moving one square instead
+      of two in order to waste a tempo.  When the Pawns get to the sixth rank,
+      there are often ways in which a Pawn may be sacrificed in order to gain promotion.")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2)
+         (King d1)
+      )
+      (Black
+         (Pawn f7 g7 h7)
+         (King e8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Trapeze")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2
+               b3 c3 c4 d4 e4 f3 f4 g3)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Shuffle #1")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 e1)
+         (Bishop a1 h1)
+         (Rook d1 f1)
+         (Queen c1)
+         (King g1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight g8 d8)
+         (Bishop h8 a8)
+         (Rook e8 c8)
+         (Queen f8)
+         (King b8)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Shuffle #2")
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight d1 f1)
+         (Bishop e1 h1)
+         (Rook a1 b1)
+         (Queen c1)
+         (King g1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight e8 c8)
+         (Bishop d8 a8)
+         (Rook h8 g8)
+         (Queen f8)
+         (King b8)
+      )
+   )
+)
+

@@ -1,0 +1,44 @@
+{
+    "version": "1.5.0-beta",
+    "compilerOptions": {
+        "target": "es5",
+        "module": "commonjs",
+        "isolatedModules": false,
+        "jsx": "react",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": false,
+        "declaration": false,
+        "noImplicitAny": false,
+        "removeComments": true,
+        "noLib": false,
+        "preserveConstEnums": true,
+        "suppressImplicitAnyIndexErrors": true
+    },
+    "filesGlob": [
+        "./**/*.ts",
+        "./**/*.tsx",
+        "!./node_modules/**/*",
+        "!./**/node_modules/**/*"
+    ],
+    "files": [
+        "./bmpGreenTransparencyHack.ts",
+        "./electron-client-util.ts",
+        "./electron.ts",
+        "./react.d.ts",
+        "./zrflib/cmdLine.ts",
+        "./zrflib/common/common.ts",
+        "./zrflib/examples/breakthrough-direct.ts",
+        "./zrflib/main.ts",
+        "./zrflib/moveGenerator.ts",
+        "./zrflib/rulesCompiler.ts",
+        "./zrflib/sexpParser.ts",
+        "./zrflib/sexpUtils.ts",
+        "./zrflib/stateTypes.ts",
+        "./zrflib/test/zrf.ts",
+        "./zrflib/test/zrfCmdLine.ts",
+        "./zrflib/zrfCompiler.ts",
+        "./zrflib/zrfTypes.ts",
+        "./zrflib/zrfUtils.ts",
+        "./main.tsx"
+    ]
+}

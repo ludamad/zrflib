@@ -1,0 +1,1124 @@
+; *** Chess, Fairy
+; *** Copyright 1998-2002 Zillions Development
+; v.2.0
+
+; You need to purchase Zillions of Games to load this rules file
+; Visit the Zillions web site at http://www.zillions-of-games.com
+
+(version "2.0")
+
+(define available    (verify (and not-friend? (not-piece? Block))) )
+(define capturable   (verify (and enemy? (not-piece? Block))) )
+
+(define leap1        ($1          (available) add) )
+(define leap2        ($1 $2       (available) add) )
+(define leap3        ($1 $2 $3    (available) add) )
+(define leap4        ($1 $2 $3 $4 (available) add) )
+
+(define leap1ride    ($1       (while empty? add $1      ) (available) add) )
+(define leap2ride    ($1 $2    (while empty? add $1 $2   ) (available) add) )
+(define leap3ride    ($1 $2 $3 (while empty? add $1 $2 $3) (available) add) )
+
+(define shift2       ($1 (verify empty?) $2 (available) add) )
+
+(define grasshop     ($1 (while empty? $1) $1 (verify not-friend?) add) )
+(define Locust-move  ($1 (while empty? $1) (capturable) capture $1 (verify empty?) add) )
+(define Lion-move    ($1 (while empty? $1) $1 (while empty? add $1) (available) add) )
+
+(define King-shift   ($1 (available) (set-attribute never-moved? false) add) )
+
+(define Rook-ride (
+  $1
+  (while empty? (set-attribute never-moved? false) add $1)
+  (available)
+  (set-attribute never-moved? false)
+  add
+))
+
+(define Bishop-moves
+     (leap1ride ne)
+     (leap1ride nw)
+     (leap1ride se)
+     (leap1ride sw)
+)
+(define Rook-moves
+     (leap1ride n)
+     (leap1ride s)
+     (leap1ride e)
+     (leap1ride w)
+)
+(define Knight-moves
+	 (leap2 n ne)
+	 (leap2 n nw)
+	 (leap2 s se)
+	 (leap2 s sw)
+	 (leap2 e ne)
+	 (leap2 e se)
+	 (leap2 w nw)
+	 (leap2 w sw)
+)
+(define Camel-moves
+	 (leap3 n n ne)
+	 (leap3 n n nw)
+	 (leap3 s s se)
+	 (leap3 s s sw)
+	 (leap3 e e ne)
+	 (leap3 e e se)
+	 (leap3 w w nw)
+	 (leap3 w w sw)
+)
+(define Fers-moves
+     (leap1 nw)
+     (leap1 ne)
+     (leap1 sw)
+     (leap1 se)
+)
+(define Wazir-moves
+     (leap1 n)
+     (leap1 e)
+     (leap1 s)
+     (leap1 w)
+)
+(define Dabbaba-moves
+     (leap2 n n)
+     (leap2 e e)
+     (leap2 w w)
+     (leap2 s s)
+)
+(define Alfil-moves
+     (leap2 nw nw)
+     (leap2 ne ne)
+     (leap2 sw sw)
+     (leap2 se se)
+)
+
+(define O-O
+	 ( (verify never-moved?)
+	   mark
+	   e ; KB1
+	   (verify empty?)
+	   e ; KN1
+	   (verify empty?)
+	   cascade
+	   e ; KR1
+	   (verify (and friend? (piece? Rook) never-moved?) )
+	   from
+	   back ; K1
+		 ; Save expensive not-attacked?s for last
+	   (verify not-attacked?)
+	   e ; KB1
+	   (verify not-attacked?)
+	   to
+	   (set-attribute never-moved? false)
+		 ; We could check if KN1 is attacked too, but this isn't
+		 ; really necessary since Zillions doesn't allow any moves
+		 ; into check
+	   e ; KN1
+	   (set-attribute never-moved? false)
+	   add
+	 )
+)
+
+(define O-O-O
+     ( (verify never-moved?)
+	   mark
+       w ; Q1
+       (verify empty?)
+       w ; QB1
+       (verify empty?)
+       cascade
+       w ; QN1
+       (verify empty?)
+       w ; QR1
+       (verify (and friend? (piece? Rook) never-moved?) )
+       from
+       back ; K1
+         ; Save expensive not-attacked?s for last
+       (verify not-attacked?)
+       w ; Q1
+       (verify not-attacked?)
+       to
+       (set-attribute never-moved? false)
+         ; We could check if KN1 is attacked too, but this isn't
+         ; really necessary since Zillions doesn't allow any moves
+         ; into check
+       w ; QB1
+       (set-attribute never-moved? false)
+       add
+     )
+)
+
+(define Pawn-add
+   (if (in-zone? promotion-zone) (add Knight Bishop Rook Queen) else add)
+)
+(define Pawn-move
+   (
+      $1
+      (verify empty?)
+      (Pawn-add)
+      (verify (in-zone? third-rank))
+      $1
+      (verify empty?)
+      add
+   )
+)
+(define Pawn-capture ($1 (capturable) (Pawn-add)))
+(define En-Passant
+   (
+      $1
+      (verify enemy?)
+      (verify last-to?)
+      (verify (piece? Pawn))
+      capture
+      n
+      to
+      n
+      (verify last-from?)
+      add
+   )
+)
+
+(define Weak-Pawn-move-1 (n (verify empty?) add) )
+(define Weak-Pawn-move
+   (
+      n
+      (verify empty?)
+      add
+      (verify (in-zone? third-rank))
+      n
+      (verify empty?)
+      add
+   )
+)
+(define Weak-Pawn-capture ($1 (capturable) add))
+
+(game
+   (title "Fairy Chess")
+   (description "Fairy Chess\\The board and pieces are initially configured for
+      a game of standard Western Chess.  However, if you right-click on the
+      board you will see an entire army of `fairy` pieces at your disposal.  By
+      replacing some of the normal Chess pieces with these unorthodox ones, you
+      can instantly create any number of new Chess variants to play!  Right-click
+      on a fairy piece and select its properties for a full description of its
+      movement.   The best source for interesting variant games is David
+      Pritchard's book `The Encyclopedia of Chess Variants.`  This and other
+      good books and magazines are described at 
+      <http://www.zillions-of-games.com/chessvar.html>.\\
+      The following is summary of the available fairy pieces.  axb means leaping to the opposite
+      side of an axb rectangle.  A trailing plus means the movement of the piece is repeated in 
+      the same direction.  Often pieces are combinations of other pieces, e.g. Q: R+B\\
+      Alfil: 2x2 / Alfilrider: Alfil+ / Berolina Pawn: P but moves diag, captures straight / Camel: 2x4 /
+      Camelrider: Camel+ / Dabbaba: 2x0 / Dabbabarider: Dabbaba+ / Dragon: P+N / Empress(Marshall): R+N / 
+      Fers: 1x1 / Giraffe: 2x5 / Grasshopper: Slides, jumps, lands / Gnu: N+Camel / Gryphon: P+B / 
+      KnightRider: N+ / Lion: Slides, jumps, slides / Locust: Slides, captures, lands on empty / 
+      Maharaja(Amazon): Q+N / Mao: N but slides / Nightrider: N+ / Princess(Cardinal): B+N / 
+      Squirrel: N+Dabbaba+Alfil / Weak Pawn: P but can't promote / Wazir: 1x0 / Zebra: 3x4")
+   (history "Experimentation with new types of pieces is as old as the
+      game itself.  In fact, modern Chess is the product of such experiments.  It
+      wasn't until the end of the 15th century that the Queen and Bishop were
+      granted the powerful roles they play today.  You will find their former selves
+      in the `Fers` and `Alfil`.  In the early 1900's fairy pieces such as Dawson's
+      `Grasshopper` and `Nightrider` were frequently used in problem compositions.
+      All of these fairy pieces and more can be found in Anthony Dickins' `A Guide
+      to Fairy Chess`.")
+   (strategy "You will find that all the basic principles of Chess still apply:
+      maximize the activity of your pieces, gain space, and keep your King safe!")
+   (option "prevent flipping" 2)
+   (win-sound "Audio\\Orchestra_CF.wav")
+   (loss-sound "Audio\\Orchestra_FC.wav")
+   (click-sound "Audio\\Pickup.wav")
+   (release-sound "Audio\\WoodThunk.wav")
+   (players White Black Neutral)
+   (turn-order White Black)
+
+   (board
+      (image "images\Chess\SHaag\Chess8x8.bmp")
+      (grid
+         (start-rectangle 5 5 53 53)
+         (dimensions
+             ("a/b/c/d/e/f/g/h" (49 0)) ; files
+             ("8/7/6/5/4/3/2/1" (0 49)) ; ranks
+         )
+         (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			         (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+         )
+      )
+      (symmetry Black (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+	  (zone
+		 (name promotion-zone)
+		 (players White)
+		 (positions a8 b8 c8 d8 e8 f8 g8 h8)
+	  )
+	  (zone
+		 (name promotion-zone)
+		 (players Black)
+		 (positions a1 b1 c1 d1 e1 f1 g1 h1)
+	  )
+	  (zone
+		 (name third-rank)
+		 (players White)
+		 (positions a3 b3 c3 d3 e3 f3 g3 h3)
+	  )
+	  (zone
+		 (name third-rank)
+		 (players Black)
+		 (positions a6 b6 c6 d6 e6 f6 g6 h6)
+	  )
+   )
+
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black        
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+
+   (piece
+      (name Pawn)
+      (help "Pawn: moves forward, captures diagonally, can promote on 8th row")
+      (description "Pawn\A Pawn can move straight ahead one square, or two squares from
+           its starting position.  A Pawn captures by moving one square ahead and
+           diagonally.  If a Pawn reaches the far rank it promotes, changing into
+           a Knight, Bishop, Rook, or Queen.  On rare occasions Pawns can also execute
+           a move called `En Passant`, or `in passing`.  This allows a Pawn to take
+           an enemy Pawn that has just moved two squares.")
+      (image White "images\Chess\SHaag\wpawn.bmp" Black "images\Chess\SHaag\bpawn.bmp")
+      (moves
+         (Pawn-capture nw)
+         (Pawn-capture ne)
+         (Pawn-move n)
+      )
+   )
+   (piece
+      (name Knight)
+      (help "Knight: moves like an `L`, 2 squares one way and one the other")
+      (description "Knight\A Knight moves like an `L`, two squares vertically plus one
+          horizontally, or two squares horizontally plus one vertically.  It
+          hops over any pieces on the way.")
+      (image White "images\Chess\SHaag\wknight.bmp" Black "images\Chess\SHaag\bknight.bmp")
+      (moves (Knight-moves))
+   )
+   (piece
+      (name Bishop)
+      (help "Bishop: slides diagonally any number of squares")
+      (description "Bishop\A Bishop moves any number of squares on a diagonal.  It may
+           not leap over other pieces.")
+      (image White "images\Chess\SHaag\wbishop.bmp" Black "images\Chess\SHaag\bbishop.bmp")
+      (moves (Bishop-moves))
+   )
+   (piece
+      (name Rook)
+      (help "Rook: slides any number of squares along the row or column.")
+      (description "Rook\A Rook moves any number of squares orthogonally on a rank
+           or a file.  It may not leap over other pieces (except the King during
+           a Castling move).")
+      (image White "images\Chess\SHaag\wrook.bmp" Black "images\Chess\SHaag\brook.bmp")
+      (attribute never-moved? true)
+      (moves
+         (Rook-ride n)
+         (Rook-ride e)
+         (Rook-ride s)
+         (Rook-ride w)
+      )
+   )
+   (piece
+      (name Queen)
+      (help "Queen: can slide any number of squares in any direction")
+      (description "Queen\A Queen moves any number of squares in a straight line.
+          It may not leap over other pieces.")
+      (image White "images\Chess\SHaag\wqueen.bmp" Black "images\Chess\SHaag\bqueen.bmp")
+      (moves (Bishop-moves) (Rook-moves))
+   )
+   (piece
+      (name King)
+      (help "King: steps 1 square in any direction to a safe square")
+      (description "King\A King can move to any adjacent square, but never to a 
+	      square where it can be captured.  It may also `castle`
+          with the Rook if neither the Rook nor King has moved yet and there is
+          nothing in between them.  In castling the King moves two squares nearer
+          the Rook and the Rook leaps to the far side of the King.  You may not
+          castle out of or through check, or if the King or Rook involved has 
+		  previously moved.")
+      (image White "images\Chess\SHaag\wking.bmp" Black "images\Chess\SHaag\bking.bmp")
+      (attribute never-moved? true)
+      (moves
+         (King-shift n)
+         (King-shift e)
+         (King-shift s)
+         (King-shift w)
+         (King-shift ne)
+         (King-shift nw)
+         (King-shift se)
+         (King-shift sw)
+         (O-O)
+         (O-O-O)
+      )
+   )
+
+   ; *** Fairy pieces
+   (piece
+      (name Block)
+      (help "Block: you can't move to a position with a Block on it.")
+      (description "Block\A Block is just a barrier in the board.  It may be hopped over
+	       by a Knight or other leaping piece.  It is also known as a Pyramid.")
+      (image Neutral "images\Chess\Block.bmp")
+   )
+   (piece
+      (name Weak-Pawn)
+      (help "Weak Pawn: moves forward, captures diagonally, no promotion")
+      (description "Weak Pawn\A Pawn can move straight ahead one square, or two squares
+           from its starting position.  A Pawn captures by moving one square diagonally
+           forward.\\The Weak Pawn cannot promote.")
+      (image White "images\Fairy_Chess\WPawn-weak.bmp" Black "images\Fairy_Chess\BPawn-weak.bmp")
+      (moves
+         (Weak-Pawn-capture nw)
+         (Weak-Pawn-capture ne)
+         (Weak-Pawn-move)
+      )
+   )
+   (piece
+      (name Berolina-Pawn)
+      (help "Berolina Pawn: moves diagonally, captures forward, promotes on 8th row")
+      (description "Berolina Pawn (Berlin Pawn)\Unlike a regular Pawn, which moves
+             straight ahead and captures ahead diagonally forward, a Berolina Pawn
+             moves diagonally forward and captures straight ahead.  On its first move,
+             a Berolina Pawn can make a two-step move (diagonally).  It promotes as a
+             normal Pawn.\\Invented by Edmund Nebermann in 1926.")
+      (image White "images\Fairy_Chess\WPawn-ber.bmp" Black "images\Fairy_Chess\BPawn-ber.bmp")
+      (moves
+         (Pawn-capture n)
+         (Pawn-move ne)
+         (Pawn-move nw)
+      )
+   )
+   (piece
+      (name Grasshopper)
+      (help "Grasshopper: slides, jumps 1 piece, lands immediately beyond")
+      (description "Grasshopper\A Grasshopper slides any number of spaces along any line
+        (like a Queen) until it encounters a piece of either color.  It hops over this piece
+        and lands immediately on the other side, possibly capturing.  There must be a piece 
+	to leap over for the Grasshopper to move.\\Grasshoppers were invented by T.R. Dawson 
+	in 1912 for use in fairy chess problems.")
+      (image White "images\Chess\SHaag\WDownQueen.bmp" Black "images\Chess\SHaag\BDownQueen.bmp")
+      (moves
+         (grasshop n)
+         (grasshop e)
+         (grasshop s)
+         (grasshop w)
+         (grasshop ne)
+         (grasshop nw)
+         (grasshop se)
+         (grasshop sw)
+	   )
+   )
+   (piece
+      (name Locust)
+      (help "Locust: slides, captures 1 enemy, lands on vacancy immediately beyond")
+      (description "Locust\A Locust slides any number of spaces along any line (like a Queen)
+         until it encounters an enemy piece.  It hops over this piece, capturing it in the
+         process, and lands immediately on a vacant square on the other side.  If the square
+         beyond is occupied or if is no enemy piece to capture the Locust may not make that
+         move.")
+      (image White "images\Fairy_Chess\WDownQueen-loc.bmp" Black "images\Fairy_Chess\BDownQueen-loc.bmp")
+      (moves
+         (Locust-move n)
+         (Locust-move e)
+         (Locust-move s)
+         (Locust-move w)
+         (Locust-move ne)
+         (Locust-move nw)
+         (Locust-move se)
+         (Locust-move sw)
+	   )
+   )
+   (piece
+      (name Lion)
+      (help "Lion: slides, jumps 1 piece, slides")
+      (description "Lion\A Lion slides any number of spaces along any line (like a Queen)
+         until it encounters a piece of either color.  It hops over this piece and then continues
+	 sliding any number of squares beyond, possibly capturing at the end.  There must be 
+	 a piece to leap over for the Lion to move and only one piece may be jumped over.  The 
+	 Lion is a more powerful version of the Grasshopper.")
+      (image White "images\Fairy_Chess\WDownQueen-lion.bmp" Black "images\Fairy_Chess\BDownQueen-lion.bmp")
+      (moves
+         (Lion-move n)
+         (Lion-move e)
+         (Lion-move s)
+         (Lion-move w)
+         (Lion-move ne)
+         (Lion-move nw)
+         (Lion-move se)
+         (Lion-move sw)
+      )
+   )
+   (piece
+      (name Nightrider)
+      (help "Nightrider: moves repeatedly like a Knight in same direction")
+      (description "Nightrider\Moves like a chess Knight, but may continue a series of
+         leaps in the same direction.   One of the most popular fairy chess pieces,
+         it was invented in 1925 by T. R. Dawson.")
+      (image White "images\Chess\SHaag\WDownKnight.bmp" Black "images\Chess\SHaag\BDownKnight.bmp")
+      (moves
+	     (leap2ride n ne)
+	     (leap2ride n nw)
+	     (leap2ride s se)
+	     (leap2ride s sw)
+	     (leap2ride e ne)
+	     (leap2ride e se)
+	     (leap2ride w nw)
+	     (leap2ride w sw)
+      )
+   )
+   (piece
+      (name Wazir)
+      (help "Wazir: steps 1 square orthogonally")
+      (description "Wazir\A Muslim chess piece, the Wazir can take a single
+          step along any row or column.  It may not move diagonally.")
+      (image White "images\Fairy_Chess\WRook-waz.bmp" Black "images\Fairy_Chess\BRook-waz.bmp")
+      (moves (Wazir-moves))
+   )
+   (piece
+      (name Fers)
+      (help "Fers: steps 1 square diagonally")
+      (description "Fers/Firzan (General)\A Muslim chess piece, the Fers can take a single
+          step along any diagonal.  It may not move orthogonally.  Despite being confined
+          to squares of one color, it is a stronger piece than the Wazir, because it can
+          move across the board more rapidly.")
+      (image White "images\Fairy_Chess\WQueen-fers.bmp" Black "images\Fairy_Chess\BQueen-fers.bmp")
+      (moves (Fers-moves))
+   )
+   (piece
+      (name Mao)
+      (help "Mao: moves 1 square orthogonally + 1 square diagonally outward")
+      (image White "images\Fairy_Chess\WKnight-mao.bmp" Black "images\Fairy_Chess\BKnight-mao.bmp")
+      (description "Mao\A popular Chinese piece, the Mao reaches the same
+          squares as a Knight, but slides to do so.  It must pass over an
+          empty square orthogonally, then it continues one square diagonally
+          outward.")
+      (moves
+	     (shift2 n ne)
+	     (shift2 n nw)
+	     (shift2 s se)
+	     (shift2 s sw)
+	     (shift2 e ne)
+	     (shift2 e se)
+	     (shift2 w nw)
+	     (shift2 w sw)
+      )
+   )
+   (piece
+      (name Alfil)
+      (help "Alfil: leaps 2 squares diagonally")
+      (description "Alfil/Fil (Elephant)\A Muslim chess piece, the Alfil leaps two
+          squares diagonally, jumping over anything in between.   The Chinese Chess
+          Elephant is related to this piece, but cannot jump over an intervening
+          piece.")
+      (image White "images\Fairy_Chess\WBishop-al.bmp" Black "images\Fairy_Chess\BBishop-al.bmp")
+      (moves (Alfil-moves))
+   )
+   (piece
+      (name Alfilrider)
+      (help "Alfilrider: repeatedly leaps 2 squares diagonally")
+      (description "Alfilrider\A Muslim chess piece, the Alfil leaps two
+          squares diagonally, jumping over anything in between.  \The
+          Alfilrider moves like a Alfil,
+          but may continue any number of leaps in the same direction.")
+      (image White "images\Chess\SHaag\WDownBishop.bmp" Black "images\Chess\SHaag\BDownBishop.bmp")
+      (moves
+         (leap2ride nw nw)
+         (leap2ride ne ne)
+         (leap2ride sw sw)
+         (leap2ride se se)
+      )
+   )
+   (piece
+      (name Dabbaba)
+      (help "Dabbaba: leaps 2 squares orthogonally")
+      (description "Dabbaba\A Muslim chess piece, the Dabbaba leaps two
+          squares along a row or column, jumping over anything in between.")
+      (image White "images\Fairy_Chess\WRook-dab.bmp" Black "images\Fairy_Chess\BRook-dab.bmp")
+      (moves (Dabbaba-moves))
+   )
+   (piece
+      (name Dabbabarider)
+      (help "Dabbabarider: repeatedly 2 squares orthogonally")
+      (description "Dabbabarider\A Muslim chess piece, the Dabbaba leaps two
+          squares along a row or column, jumping over anything in between.\The
+          Dabbabarider moves like a Dabbaba,
+          but may continue any number of leaps in the same direction.")
+      (image White "images\Chess\SHaag\WDownRook.bmp" Black "images\Chess\SHaag\BDownRook.bmp")
+      (moves
+         (leap2ride n n)
+         (leap2ride e e)
+         (leap2ride w w)
+         (leap2ride s s)
+      )
+   )
+   (piece
+      (name Camel)
+      (help "Camel: leaps to other corner of 2x4 rectangle")
+      (description "Camel\A Muslim chess piece, the Camel moves like a
+           Knight, but a little farther.  Instead of leaping 1 + 2 squares,
+           the Camel leaps 1 + 3 squares.   Like a Bishop, the Camel is
+           confined to squares of one color, and is weaker than the Knight.
+           A modern game including the Camel is R. Wayne Schmittberger's `Wildebeest
+           Chess` (see his book `New Rules for Classic Games`).")
+      (image White "images\Fairy_Chess\WKnight-cam.bmp" Black "images\Fairy_Chess\BKnight-cam.bmp")
+      (moves (Camel-moves))
+   )
+   (piece
+      (name Camelrider)
+      (help "Camelrider: repeatedly leaps to other corner of 2x4 rectangle")
+      (description "Camelrider\A Muslim chess piece, the Camel moves like a
+          Knight, but a little farther.  Instead of leaping 1 + 2 squares,
+          the Camel leaps 1 + 3 squares.\The Camelrider moves like a Camel,
+          but may continue any number of leaps in the same direction.")
+      (image White "images\Fairy_Chess\WDownKnight-cr.bmp" Black "images\Fairy_Chess\BDownKnight-cr.bmp")
+      (moves
+	     (leap3ride n n ne)
+	     (leap3ride n n nw)
+	     (leap3ride s s se)
+	     (leap3ride s s sw)
+	     (leap3ride e e ne)
+	     (leap3ride e e se)
+	     (leap3ride w w nw)
+	     (leap3ride w w sw)
+      )
+   )
+   (piece
+      (name Giraffe)
+      (help "Giraffe: leaps to other corner of 2x5 rectangle")
+      (description "Giraffe\The Giraffe moves like a
+          Knight, but farther.  Instead of leaping 1 + 2 squares,
+          the Giraffe leaps 1 + 4 squares.")
+      (image White "images\Fairy_Chess\WKnight-gir.bmp" Black "images\Fairy_Chess\BKnight-gir.bmp")
+      (moves
+	     (leap4 n n n ne)
+	     (leap4 n n n nw)
+	     (leap4 s s s se)
+	     (leap4 s s s sw)
+	     (leap4 e e e ne)
+	     (leap4 e e e se)
+	     (leap4 w w w nw)
+	     (leap4 w w w sw)
+      )
+   )
+   (piece
+      (name Zebra)
+      (help "Zebra: leaps to other corner of 3x4 rectangle")
+      (description "Zebra\The Zebra moves like a Knight, but farther.  Instead of
+        leaping 1 + 2 squares, the Zebra leaps 2 + 3 squares.   The move of the
+        Elephant in Korean Chess is similar, but the Korean Elephant cannot leap.")
+      (image White "images\Fairy_Chess\WKnight-zeb.bmp" Black "images\Fairy_Chess\BKnight-zeb.bmp")
+      (moves
+	     (leap3 n ne ne)
+	     (leap3 n nw nw)
+	     (leap3 s se se)
+	     (leap3 s sw sw)
+	     (leap3 e ne ne)
+	     (leap3 e se se)
+	     (leap3 w nw nw)
+	     (leap3 w sw sw)
+      )
+   )
+
+   ;*** Combination pieces
+   (piece
+      (name Princess)
+      (help "Princess/Cardinal (B+N): slides like a Bishop or leaps like a Knight")
+      (description "Princess (Cardinal)\Combines the powers of a Bishop and a Knight.  It
+        is somewhat weaker than a Queen.\The Princess (Cardinal) and Empress (Marshall) have proved popular
+        in expanded forms of chess on 10x10 and larger boards.")
+      (image White "images\Chess\SHaag\WKnightBishop.bmp" Black "images\Chess\SHaag\BKnightBishop.bmp")
+      (moves (Bishop-moves) (Knight-moves))
+   )
+   (piece
+      (name Empress)
+      (help "Empress/Marshall (R+N): slides like a Rook or leaps like a Knight")
+      (description "Empress (Marshall, Chancellor)\Combines the powers of a Rook and a
+        Knight.  It is comparable in strength to the Queen.\The Princess (Cardinal) and Empress (Marshall)
+        have proved popular in expanded forms of chess on 10x10 and larger boards.")
+      (image White "images\Chess\SHaag\WKnightRook.bmp" Black "images\Chess\SHaag\BKnightRook.bmp")
+      (moves (Rook-moves) (Knight-moves))
+   )
+   (piece
+      (name Gnu)
+      (help "Gnu: Leaps like a Knight or Camel")
+      (description "Gnu (Wildebeest)\Combines the powers of a Knight and a
+           Camel.  Leaps 1 + 2 squares (Knight) or 1 + 3 squares (Camel).  The
+           Gnu is a powerful piece, stronger than an ordinary Rook.   R. Wayne
+           Schmittberger invented a fascinating variant called `Wildebeest
+           Chess` on an 11x10 board using gnus and camels -- see his book `New Rules
+           For Classic Games` for a description.")
+      (image White "images\Fairy_Chess\WKnight-gnu.bmp" Black "images\Fairy_Chess\BKnight-gnu.bmp")
+      (moves (Camel-moves) (Knight-moves))
+   )
+   (piece
+      (name Squirrel)
+      (help "Squirrel: Leaps 2 squares away")
+      (description "Squirrel\Combines the powers of an Alfil, Dabbaba, and Knight.  Thus
+	     the Squirrel can leap to any place two squares away.   The name squirrel is
+           a more recent one, but a piece with the squirrel's powers first appeared in
+           Francesco Piacenza's 10x10 variant Arch Chess in 1683.")
+      (image White "images\Fairy_Chess\WKnight-sq.bmp" Black "images\Fairy_Chess\BKnight-sq.bmp")
+      (moves (Alfil-moves) (Dabbaba-moves) (Knight-moves))
+   )
+   (piece
+      (name Dragon)
+       (help "Dragon: Moves like a Pawn or Knight")
+     (description "Dragon\Combines the movement of a Pawn and a Knight.  Can't promote,
+	     capture en passant, or double-step.")
+      (image White "images\Fairy_Chess\WKnight-dr.bmp" Black "images\Fairy_Chess\BKnight-dr.bmp")
+      (moves (Weak-Pawn-move-1) (Weak-Pawn-capture ne) (Weak-Pawn-capture nw) (Knight-moves))
+   )
+   (piece
+      (name Gryphon)
+      (help "Gryphon: Moves like a Pawn or Bishop")
+      (description "Gryphon (Griffin)\Combines the movement of a Pawn and a Bishop.  Can't promote,
+	     capture en passant, or double-step.")
+      (image White "images\Fairy_Chess\WBishop-gr.bmp" Black "images\Fairy_Chess\BBishop-gr.bmp")
+      (moves (Weak-Pawn-move-1) (Weak-Pawn-capture ne) (Weak-Pawn-capture nw) (Bishop-moves))
+   )
+   (piece
+      (name Maharaja)
+      (help "Maharaja/Amazon (Q+N): slides along any line like a Queen or jumps like a Knight")
+      (image White "images\Chess\SHaag\WDownQueen.bmp" Black "images\Chess\SHaag\Maharaja.bmp")
+      (description "Maharaja (Amazon)\A Maharaja can slide any number of spaces along any line
+        (like a Queen) as well as hopping in the `L` pattern of a Knight.  Also known
+        as an Amazon, Omnipotent Queen, Terror, and General.  This piece was used before 1500.")
+      (moves (Rook-moves) (Bishop-moves) (Knight-moves))
+   )
+
+   (loss-condition (White Black) (checkmated King) )
+)
+
+; **************************************************************************
+; ### Other rules:
+;      Alfils may not attack each other
+;      Ferses may not attack each other (unless one is a promoted pawn)?
+;      Okay to lose all your pieces if you can capture your opponent's last piece next move
+(define Shatranj-Pawn-add (if (in-zone? promotion-zone) (add Fers) else add))
+(define Shatranj-Pawn-move (n (verify empty?) (Shatranj-Pawn-add)))
+(define Shatranj-Pawn-capture ($1 (capturable) (Shatranj-Pawn-add)))
+(variant
+   (title "Shatranj")
+   (description "Played like modern Chess, except:\\
+      * The King (Shah) begins on the opposite side as in Chess and it may not castle\
+	  * The Queen is a Fers, which only moves a single step diagonally\
+	  * The Bishops are Alfils, which jump two squares diagonally\
+	  * A Pawn may only move one square and only promote to a Fers\
+	  * In addition to checkmate, a player can also win by stalemating the
+	  opponent.  Another way to win is to capture all the opponent's pieces (except the
+        Shah)")
+   (history "Shatranj is the Arabic name for Chess.  In this early form it was
+      played for a millennium in Muslem countries.  For a detailed history
+	  see Murray's `A History of Chess.`")
+   (strategy "Shatranj is like a Chess endgame.  The Shah plays a powerful
+      offensive role.")
+   (piece
+      (name Shah)
+	  (help "Shah: steps 1 square in any direction to a safe square")
+      (description "Shah\A King can move to any adjacent square, but never to a 
+	      square where it can be captured.  There is no castling.")
+      (image White "images\Chess\SHaag\wking.bmp" Black "images\Chess\SHaag\bking.bmp")
+      (moves (Wazir-moves) (Fers-moves))
+   )
+   (piece
+      (name Pawn)
+      (image White "images\Chess\SHaag\wpawn.bmp" Black "images\Chess\SHaag\bpawn.bmp")
+	  (description "Pawn (Foot Soldier)\A Pawn can move straight ahead one square,
+	       or capture by moving one square ahead and
+           diagonally.\\There is no Pawn promotion or double-step move.")
+	  (help "Pawn: moves forward, captures diagonally, no promotion")
+      (moves
+         (Shatranj-Pawn-capture nw)
+         (Shatranj-Pawn-capture ne)
+         (Shatranj-Pawn-move)
+      )
+   )
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Alfil c1 f1)
+         (Rook a1 h1)
+         (Fers e1)
+         (Shah d1)
+      )
+      (Black        
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Alfil c8 f8)
+         (Rook a8 h8)
+         (Fers e8)
+         (Shah d8)
+      )
+   )
+   (loss-condition (White Black) (checkmated Shah) )
+   (loss-condition (White Black) stalemated )
+   (loss-condition (White Black) (pieces-remaining 1) ) ; bare king
+)
+
+; **************************************************************************
+(variant
+   (title "Maharaja and the Sepoys")
+   (description "Maharaja and the Sepoys\\
+      This game is played with a familiar chess array against a Maharaja, a
+	  piece that combines the moves of a Queen (slide any number of squares
+	  in any direction) and a Knight (leaps two squares one direction and
+	  one square in another).  This fairy chess piece is often called an `Amazon`.
+	  The object for White is to checkmate the Maharaja.  The object for the
+	  Maharaja is to checkmate the White King.\\
+	  White's pieces move as in Chess (right-click pieces to read descriptions
+	  of how they move), except that Pawns do not promote.")
+   (history "This game comes from mid-19th century India.")
+   (strategy "The White side should note that as long as he keeps all of
+      his pieces protected, the Maharaja can never afford to make any captures.  To
+	  win, White should concentrate on covering all the squares to push the
+	  Maharaja back rank by rank, allowing him no safe escape.  The Maharaja
+	  should look for ways to harrass White and opportunities to invade with
+	  checkmate.\\If White is careful he can force a win, but it is very easy
+	  to make a mistake and let the powerful Maharaja in.  A good player should
+	  be able to trap the Maharaja in 20 moves.")
+   (board-setup
+      (White
+         (Weak-Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black        
+         (Maharaja e8)
+      )
+   )
+   (loss-condition (White) (checkmated King) )
+   (loss-condition (Black) (checkmated Maharaja) )
+)
+
+; **************************************************************************
+(variant
+   (title "Berolina Chess")
+   (description "Berolina Chess (Berlin Chess)\\
+      All the orthodox Chess rules apply, except that all the Pawns are
+	  Berolina Pawns.  Berolina Pawns move diagonally forward and capture
+	  immediately ahead -- the reverse of normal Pawns.")
+   (history "The Berolina Pawn was invented by Edmund Hebermann of Berlin in
+      1926 and since then has been popular with puzzle composers.  Even the
+	  great Chess-player Dr. Emmanuel Lasker has studied the Pawn's
+	  properties.  Berolina Chess tournaments have been held, and it is
+	  still a popular postal game in NOST and AISE.")
+   (strategy "Berolina Pawns are more mobile than normal Pawns and can
+      easily reach the center of the board and congregate there.  The
+	  only supported Pawn chain they can form is along a file, so positions
+	  are less likely to become blocked than in Chess.  Since Berolina Pawns
+	  are not as tied down to their files, files are quickly opened up for
+	  Rooks and Queens.")
+   (board-setup
+      (White
+         (Berolina-Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black        
+         (Berolina-Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+   (loss-condition (White Black) (checkmated King) )
+)
+
+; **************************************************************************
+(variant
+   (title "No High Ground")
+   (description "Like standard Chess, except no piece can move through the center 4 squares.")
+   (history "Invented by Mark Lefler.");  
+   (board-setup
+      (White
+         (Pawn a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+      (Neutral
+         (Block e4 e5 d4 d5)
+      )
+   )
+)
+
+; **************************************************************************
+(define G-Pawn-add
+   (if (in-zone? promotion-zone) (add Knight Bishop Rook Queen Grasshopper) else add)
+)
+(define G-Pawn-move (n (verify empty?) (G-Pawn-add)) )
+(define G-Pawn-capture ($1 (capturable) (G-Pawn-add)) )
+
+(variant
+   (title "Grasshopper Chess")
+   (description "Like normal chess, except for the rows of Grasshoppers.  Pawns
+      may not move two on their first move.  Pawns may promote to Grasshoppers.
+      This can be played on a regular chessboard by using checkers to represent
+      the Grasshoppers.")
+   (history "Invented by Joseph Boyer, based on the piece Dawson invented in 1912.")
+   (strategy "Hint: The value of a Grasshopper decreases throughout the game due
+      to the fact that there are fewer and fewer pieces to jump over.")
+   (piece
+      (name Pawn)
+      (help "Pawn: moves forward, captures diagonally, promotes on 8th row")
+      (description "Pawn\A Pawn can move straight ahead one square, or capture
+          by moving one square ahead and diagonally.  If a Pawn reaches
+          the far rank it promotes, changing into a Knight, Bishop, Rook, Queen,
+          or Grasshopper.  Because of the starting position of the Pawns, they
+          have no double-step on their first move.")
+      (image White "images\Chess\SHaag\wpawn.bmp" Black "images\Chess\SHaag\bpawn.bmp")
+      (moves
+         (G-Pawn-capture nw)
+         (G-Pawn-capture ne)
+         (G-Pawn-move)
+      )
+   )
+   (board-setup
+      (White
+         (Pawn a3 b3 c3 d3 e3 f3 g3 h3)
+         (Grasshopper a2 b2 c2 d2 e2 f2 g2 h2)
+         (Knight b1 g1)
+         (Bishop c1 f1)
+         (Rook a1 h1)
+         (Queen d1)
+         (King e1)
+      )
+      (Black
+         (Pawn a6 b6 c6 d6 e6 f6 g6 h6)
+         (Grasshopper a7 b7 c7 d7 e7 f7 g7 h7)
+         (Knight b8 g8)
+         (Bishop c8 f8)
+         (Rook a8 h8)
+         (Queen d8)
+         (King e8)
+      )
+   )
+ )
+
+; **************************************************************************
+(define zoom (
+	$1
+	(verify not-friend?)
+	(if (piece? King) (verify not-attacked?))
+	(set-attribute never-moved? false) add
+))
+(variant
+   (title "Emperor King Chess")
+   (description "Played as standard Chess except that the King is really Emperor, who
+      can jump to any square, even capturing an opponent's piece.  The one restriction
+      is that an Emperor can't capture the opponent's Emperor, unless it is undefended.
+      This means that both Emperors must remain protected throughout the entire game,
+      i.e. it is illegal for an Emperor to leap to any undefended square.")
+   (history "The Emperor piece comes from Tai Shogi, a 25x25 medieval variant of Shogi.
+      R. Wayne Schmittberger, in his book `New Rules for Classic Games`, adapted it to
+      Chess.")
+   (strategy "Sacrificing to disrupt the protection around the Emperor may not be
+      as good a strategy as in Chess, as the Emperor can fly to the other side of
+      the board in a single move.  Keep in mind that the Emperor is not good at defending
+      pieces, since it can't move to an unprotected square.")
+   (piece
+      (name King)
+      (help "Emperor King: leaps to any square.")
+      (description "Emperor King\Leaps to any other other place on the board, but never to a 
+          square where it can be captured.  It may leap to capture the opponent's Emperor,
+          provided that it is unguarded.\\It may also 'castle'
+          with the Rook if neither the Rook nor King has moved yet and there is
+          nothing in between them.  In castling the King moves two squares nearer
+          the Rook and the Rook leaps to the far side of the King.  You may not
+          castle out of or through check, or if the King or Rook involved has 
+          previously moved.")
+      (image White "images\Chess\SHaag\wking.bmp" Black "images\Chess\SHaag\bking.bmp")
+      (attribute never-moved? true)
+      (moves
+         (zoom a8)(zoom b8)(zoom c8)(zoom d8)(zoom e8)(zoom f8)(zoom g8)(zoom h8)
+         (zoom a7)(zoom b7)(zoom c7)(zoom d7)(zoom e7)(zoom f7)(zoom g7)(zoom h7)
+         (zoom a6)(zoom b6)(zoom c6)(zoom d6)(zoom e6)(zoom f6)(zoom g6)(zoom h6)
+         (zoom a5)(zoom b5)(zoom c5)(zoom d5)(zoom e5)(zoom f5)(zoom g5)(zoom h5)
+         (zoom a4)(zoom b4)(zoom c4)(zoom d4)(zoom e4)(zoom f4)(zoom g4)(zoom h4)
+         (zoom a3)(zoom b3)(zoom c3)(zoom d3)(zoom e3)(zoom f3)(zoom g3)(zoom h3)
+         (zoom a2)(zoom b2)(zoom c2)(zoom d2)(zoom e2)(zoom f2)(zoom g2)(zoom h2)
+         (zoom a1)(zoom b1)(zoom c1)(zoom d1)(zoom e1)(zoom f1)(zoom g1)(zoom h1)
+         (O-O)
+         (O-O-O)
+      )
+   )
+)
+
+; **************************************************************************
+(variant
+   (title "Stationary King Chess")
+   (description "Like normal Chess, except the Kings are lazy and refuse
+       to budge from their thrones.")
+   (history "Many different variations of Chess have been invented that involve
+      immobilized pieces or limit the way a King may evade check.  This particular
+      variant has been re-invented multiple times.")
+   (strategy "Keep in mind that the f2 and f7 squares are even more vulnerable
+      than in normal Chess.  Also remember that there is no castling, as the
+      King is stuck in the center.")
+   (piece
+      (name King)
+      (help "King: very lazy, won't move at all")
+      (description "King\The King is very lazy and refuses to budge from its
+	     throne.  The object of the game is to checkmate the opponent's King.")
+      (image White "images\Chess\SHaag\WKing.bmp" Black "images\Chess\SHaag\BKing.bmp")
+   )
+)
+
+; **************************************************************************
+
+(define Board-Definitions-10x10
+  (image "images\Chess\SHaag\Chess10x10.bmp")
+  (grid
+         (start-rectangle 5 5 53 53)
+         (dimensions
+             ("a/b/c/d/e/f/g/h/i/j" (49 0)) ; files
+             ("10/9/8/7/6/5/4/3/2/1" (0 49)) ; ranks
+         )
+         (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			         (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+         )
+  )
+  (symmetry Black (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+  (zone
+     (name final-rank)
+     (players White)
+     (positions a10 b10 c10 d10 e10 f10 g10 h10 i10 j10)
+  )
+  (zone
+     (name final-rank)
+     (players Black)
+     (positions a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
+  )
+  (zone
+     (name promotion-zone)
+     (players White)
+     (positions a8 b8 c8 d8 e8 f8 g8 h8 i8 j8 a9 b9 c9 d9 e9 f9 g9 h9 i9 j9)
+  )
+  (zone
+     (name promotion-zone)
+     (players Black)
+     (positions a3 b3 c3 d3 e3 f3 g3 h3 i3 j3 a2 b2 c2 d2 e2 f2 g2 h2 i2 j2)
+  )
+  (zone
+     (name third-rank)
+     (players White)
+     (positions a4 b4 c4 d4 e4 f4 g4 h4 i4 j4)
+  )
+  (zone
+     (name third-rank)
+     (players Black)
+     (positions a7 b7 c7 d7 e7 f7 g7 h7 i7 j7)
+  )
+)
+
+(define GC-Pawn-add
+   (if (in-zone? promotion-zone) (add Knight Bishop Rook Queen Empress Princess))
+   (if (and (in-zone? final-rank)(piece? King)) add)
+   (if (in-zone? final-rank) (add Knight Bishop Rook Queen Empress Princess) else add)
+)
+(define GC-Pawn-move
+   (
+      n
+      (verify empty?)
+      (GC-Pawn-add)
+      (verify (in-zone? third-rank))
+      n
+      (verify empty?)
+      add
+   )
+)
+(define GC-Pawn-capture
+   (
+      $1
+      (verify enemy?)
+      (GC-Pawn-add)
+   )
+)
+
+(variant
+   (title "Grand Chess")
+   (description "Christian Freeling's game Grand Chess is considered one of the best large chess variants. The major differences from ordinary chess are the 10x10 board, less tangled Rooks and the two new pieces, the Cardinal (combines the moves of Knight and Bishop) and the Marshall (combining the moves of Knight and Rook). There is no castling. Pawns may promote at the eighth row, but only to pieces captured by the opponent. Promotion is not obligatory until tenth row. If no pieces are captured, pawns cannot move to the tenth row.\\Other rules are similar to ordinary chess.")
+   (history "Grand Chess was constructed by Dutch games designer Christian Freeling. It is in many ways an improved version of Capablanca's large chess.")
+   (strategy "Most things that are valid in ordinary chess also goes for Grand Chess.")
+   (option "recycle captures" true)
+   (option "recycle promotions" true)
+   (board (Board-Definitions-10x10))
+
+   (board-setup
+      (White
+         (Pawn a3 b3 c3 d3 e3 f3 g3 h3 i3 j3)
+         (Knight b2 i2)
+         (Bishop c2 h2)
+         (Rook a1 j1)
+         (Empress f2)
+         (Princess g2)
+         (Queen d2)
+         (King e2)
+      )
+      (Black
+         (Pawn a8 b8 c8 d8 e8 f8 g8 h8 i8 j8)
+         (Knight b9 i9)
+         (Bishop c9 h9)
+         (Rook a10 j10)
+         (Empress f9)
+         (Princess g9)
+         (Queen d9)
+         (King e9)
+      )
+   )
+
+   (piece
+      (name Pawn)
+      (help "Pawn: moves forward, captures diagonally, can promote on 8th-10th row")
+      (description "Pawn\A Pawn can move straight ahead one square, or two 
+squares from its starting position.  A Pawn captures by moving one square ahead and 
+diagonally. On rare occasions Pawns can also execute a move called `En Passant`, 
+or `in passing`. This allows a Pawn to take an enemy Pawn that has just moved two 
+squares.\Upon reaching eighth rank, Pawns promote to any captured piece. 
+Promotion is not mandatory and is also possible on ninth and tenth rank. However, 
+the Pawn can not move to tenth rank if there are no pieces to promote to, although 
+it can still give check from the ninth rank.")
+     (image White "images\Chess\SHaag\WPawn.bmp" Black "images\Chess\SHaag\BPawn.bmp")
+     (moves
+         (GC-Pawn-capture nw)
+         (GC-Pawn-capture ne)
+         (GC-Pawn-move)
+         (En-Passant e)
+         (En-Passant w)
+      )
+   )
+)

@@ -1,0 +1,226 @@
+;**********************************************************************
+;***                         Hnefatafl                              ***
+;***                            V1.1                                ***
+;***                  copyright Karl Scherer Dec 2000               ***
+;***                      Auckland, New Zealand                     *** 
+;***                                                                *** 
+;*** more  FREE GAMES SOFTWARE  at my homepage: karl.kiwi.gen.nz    ***
+;*** also : real Puzzles and Boardgames                             ***     
+;**********************************************************************
+
+; You need to purchase Zillions of Games to load this rules file
+; Visit the Zillions web site at http://www.zillions-of-games.com
+
+;------------ flag whose turn it is -----------------------------
+(define am-White? (in-zone? promotion-zone a8))
+
+;============================ moves ==========================================
+
+(define slide        
+  (
+    $1 
+    (while empty? 
+      (Check n s e w)
+      (Check s n e w)
+      (Check e w n s)
+      (Check w e n s)
+      add 
+      $1
+    ) 
+  )
+)
+
+(define kslide1        
+  (
+      $1 
+      (verify empty?)
+      (Check n s e w)
+      (Check s n e w)
+      (Check e w n s)
+      (Check w e n s)
+      add 
+  )
+)
+
+(define kslide2        
+  (
+      $1 
+      (verify empty?)
+      $1
+      (verify empty?)
+      (Check n s e w)
+      (Check s n e w)
+      (Check e w n s)
+      (Check w e n s)
+      add 
+  )
+)
+
+(define kslidep        
+  (
+    (verify 
+         (and 
+            (or(not-enemy? n)(not-enemy? s))
+            (or(not-enemy? e)(not-enemy? w))
+         )
+    )
+    $1 
+    (while empty? 
+      (Check n s e w)
+      (Check s n e w)
+      (Check e w n s)
+      (Check w e n s)
+      add 
+      $1
+    ) 
+  )
+)
+
+;..................... subroutines ...............................
+(define Check
+      (if (enemy? $1)
+         $1
+         (if (piece? Hnefi)
+            (if (and (friend? $1)(friend? $3)(friend? $4))
+               capture 
+            )
+         else
+            (if (friend? $1)
+               capture 
+            ) 
+         )
+         $2
+      )      
+)
+
+;============================ board ==========================================
+(define Board-Definitions
+  (image "images\Hnefatafl\Hnefatafl.bmp")
+  (grid
+     (start-rectangle 15 15 34 34)
+     (dimensions
+         ("a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s" (20 0)) ; files
+         ("19/18/17/16/15/14/13/12/11/10/9/8/7/6/5/4/3/2/1" (0 20)) ; ranks
+     )
+     (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+     )
+  )
+  (symmetry Black (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+
+  (zone
+     (name border)
+     (players Black)
+     (positions 
+       a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19
+       s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15 s16 s17 s18 s19
+       b1 c1 d1 e1 f1 g1 h1 i1 j1 k1 l1 m1 n1 o1 p1 q1 r1 
+       b19 c19 d19 e19 f19 g19 h19 i19 j19 k19 l19 m19 n19 o19 p19 q19 r19 
+     )
+  )
+)
+
+;==================================== game ============================================
+(game
+   (title "Hnefatafl (V1.1)")
+   (description "Object: White wins if four of his men (Hunns) surround the king (Hnefi) orthogonally.
+       \Black wins if the Hnefi reaches the border of the board.
+       \
+       \All pieces move like chess rooks, but the Hnefi only one square.
+       \Enemy Hunns are captured by trapping a Hunn between two of the player's pieces
+       \on rank or file.
+       \A piece may move between two enemy pieces without being captured.
+       \
+       \Variant 2 : the Hnefi may move up to two squares at a time.
+       \Variant 3 : the Hnefi moves like a chess rook.
+       \            This is the version I found in a book, but I suspect it to be wrong,
+       \            since it makes the king too mobile and (imho) gives Black an easy win. 
+       \Variant 4 : the Hnefi moves like a chess rook, but is immobilised as long
+       \            as it is trapped between to enemy pieces on rank or file.")
+   (history "Hnefatafl was played in the Middle Ages.
+     \It originated from the game Tafl, of which no description has survived.
+     \ 
+     \Implemented (and 3 variants invented) by Karl Scherer December 2000.
+     \Source: Book 'Board & Table Games I' by R.C. Bell.
+     \
+     \More freeware and real puzzles and games at my homepage: karl.kiwi.gen.nz .")
+   (win-sound "Audio\Orchestra_CF.wav")
+   (loss-sound "Audio\Orchestra_FC.wav")
+   (click-sound "Audio\Pickup.wav")
+   (release-sound "Audio\WoodThunk.wav")
+   (players White Black)
+   (turn-order White Black)
+   (pass-turn false)
+   (board (Board-Definitions))
+
+   (board-setup
+      (White
+         (Hunn 
+           a3  a6  a14 a17 s3  s6  s14 s17
+           c1  c6  c14 c19 q1  q6  q14 q19
+           d8  d10 d12     p8  p10 p12 
+           e7  e13         o7  o13
+           f1 f3 f6 f14 f17 f19 n1 n3 n6 n14 n17 n19
+           g5  g15         m5 m15
+           h4  h16         l4 l16  
+           j4  j16    
+         )
+      )
+      (Black
+         (Hunn 
+           e9  e11 o9  o11
+           g10 m10
+           h9  h11 l9 l11
+           i5 i8 i10 i12 i15 k5 k8 k10 k12 k15
+           j7 j9 j11 j13 
+         )
+         (Hnefi j10)
+     )
+   )
+
+   (piece (name Hunn)
+      (image White "images\Hnefatafl\wHunn.bmp" Black "images\Hnefatafl\bHunn.bmp")
+      (moves
+        (slide n)(slide e)(slide s)(slide w)
+      )
+   )
+
+   (piece (name Hnefi)
+      (image Black "images\Hnefatafl\Hnefi.bmp")
+      (moves
+        (kslide1 n)(kslide1 e)(kslide1 s)(kslide1 w)
+      )
+   )
+
+   (loss-condition (Black) (pieces-remaining 0 Hnefi) )
+   (win-condition (Black)  (absolute-config Hnefi (border)) )
+)
+
+;======================= variants ===========================================
+(variant (title "Hnefi may move two steps")
+   (piece (name Hnefi)
+      (image Black "images\Hnefatafl\Hnefi.bmp")
+      (moves
+        (kslide1 n)(kslide1 e)(kslide1 s)(kslide1 w)
+        (kslide2 n)(kslide2 e)(kslide2 s)(kslide2 w)
+      )
+   )
+)
+
+(variant (title "Hnefi moves like a Hunn")
+   (piece (name Hnefi)
+      (image Black "images\Hnefatafl\Hnefi.bmp")
+      (moves
+        (slide n)(slide e)(slide s)(slide w)
+      )
+   )
+)
+
+(variant (title "Hnefi moves like a Hunn, but can be paralyzed.")
+   (piece (name Hnefi)
+      (image Black "images\Hnefatafl\Hnefi.bmp")
+      (moves
+        (kslidep n)(kslidep e)(kslidep s)(kslidep w)
+      )
+   )
+)

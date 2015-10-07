@@ -1,0 +1,62 @@
+
+(define 5x5
+  (image "images\Breakthrough\Knight5x5.bmp")
+  (grid
+     (start-rectangle 5 9 53 57)
+     (dimensions
+         ("a/b/c/d/e" (49 0)) ; files
+         ("5/4/3/2/1" (0 49))) ; ranks
+     (directions (n 0 -1) (s 0 1)
+		(ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)))
+  (symmetry Gold (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+  (zone
+     (name win-zone)
+     (players Silver)
+     (positions a5 b5 c5 d5 e5))
+  (zone
+     (name win-zone)
+     (players Gold)
+     (positions a1 b1 c1 d1 e1))
+)
+
+(define step ($1 (verify empty?) add))
+
+(define cap ($1 (verify not-friend?) add))
+
+(define lance
+      (name Lance)
+	  (help "Lance: moves forward or diagonally forward and
+		captures diagonally forward")
+      (description "A Lance can move forward or diagonally forward 
+		and captures diagonally forward.  You win by moving a 
+		Lance to the opposite side of the board.")
+      (image Silver "images\Breakthrough\silver.bmp" 
+		Gold "images\Breakthrough\gold.bmp")
+      (moves
+         (step n)
+	 (cap ne)
+	 (cap nw))
+)
+
+(game
+   (music "Audio\Breakthrough\Grail.mid")
+   (opening-sound "Audio\Breakthrough\Horse.wav")
+   (win-sound "Audio\Breakthrough\Hurrah.wav")
+   (loss-sound "Audio\Breakthrough\Loss.wav")
+   (move-sound "Audio\Breakthrough\Clank.wav")
+   (release-sound "Audio\Breakthrough\Clank.wav")
+   (capture-sound "Audio\Breakthrough\Aagh.wav")
+   (players Silver Gold)
+   (turn-order Silver Gold)
+   (pass-turn forced)
+   (board (5x5)
+   (board-setup
+      (Silver
+         (Lance a1 b1 c1 d1 e1 
+		a2 b2 c2 d2 e2))
+      (Gold
+         (Lance a4 b4 c4 d4 e4
+		a5 b5 c5 d5 e5)))
+   (piece (lance))
+   (win-condition (Silver Gold) (absolute-config Lance (win-zone)))
+)
